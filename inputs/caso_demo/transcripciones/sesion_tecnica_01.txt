@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00:01.000 --> 00:00:04.000
+María Solís: Eh, bueno, gracias a todos por conectarse, este, a la sesión técnica.
+
+00:00:04.500 --> 00:00:09.000
+María Solís: O sea, la idea idea verdad es entender cómo sacamos la facturación adquiriente.
+
+00:00:09.500 --> 00:00:14.000
+Carlos Vega: Perfecto. Mmm, las fuentes principales están en el servidor on-premise SQLPROD01.
+
+00:00:14.500 --> 00:00:18.000
+Carlos Vega: Digamos, la tabla de transacciones tiene como, tipo, 400 millones de registros al año.
+
+00:00:18.500 --> 00:00:22.000
+Juan Pérez: Ajá, ya, pero esa tabla es transaccional, entonces hay que replicar a un servidor no transaccional.
+
+00:00:22.500 --> 00:00:26.000
+Juan Pérez: O sea, si pegamos directo eh, generamos bloqueos en producción, verdad.
+
+00:00:26.500 --> 00:00:30.000
+Carlos Vega: Correcto. Entonces habilitamos réplica a SQLREPL02 y de ahí Data Factory lee.
+
+00:00:30.500 --> 00:00:34.000
+Juan Pérez se unió a la reunión
+
+00:00:34.500 --> 00:00:39.000
+María Solís: Y los plazos de liquidación, esos cómo se calculan, digamos, la lógica de negocio?
+
+00:00:39.500 --> 00:00:44.000
+Carlos Vega: Es un join entre transacciones y el catálogo de comercios filtrando por fecha de corte.

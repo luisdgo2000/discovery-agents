@@ -1,0 +1,12 @@
+# Núcleo determinista (corre en Python 3.9+)
+openpyxl>=3.1
+python-docx>=1.1
+
+# Servidor MCP (requiere Python >= 3.10) — para consumir desde GitHub Copilot
+mcp[cli]>=1.2 ; python_version >= "3.10"
+
+# Opcionales (se degradan con gracia si no están instalados)
+python-pptx>=0.6    # extracción de PowerPoint
+pypdf>=4.0          # lectura de PDFs
+pytesseract>=0.3    # OCR de imágenes (requiere binario tesseract)
+Pillow>=10.0        # apertura de imágenes para OCR
