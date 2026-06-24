@@ -35,12 +35,17 @@ integral que originó la v2 está en [docs/REVISION_INTEGRAL.md](docs/REVISION_I
 | F4 | Hipótesis y arquetipos DataMesh | IA fuerte |
 | F5 | Score/veredicto determinista + crítica con preguntas poderosas | Python + IA fuerte |
 | F6 | **Redactor Experto**: narrativa empresarial (as-is/to-be, factibilidad S/M/L/XL) + inconsistencias | IA fuerte |
-| F7 | Ensamblado server-side: doc final, brechas, veredicto, **diagramas Mermaid** y **matrices** · **[G2: humano aprueba]** | Python (0 tk) |
+| F7 | Ensamblado server-side: doc final en **dos vistas** + **.docx**, brechas, **temas faltantes**, **fidelidad**, **diagramas Mermaid** y **matrices** · **[G2: humano aprueba]** | Python (0 tk) |
 
-Entregables en `work/<caso>/outputs/`: `discovery_final.md` (narrativa + anexos),
-`brechas.md`, `veredicto.json`, `diagramas/` (flujo de datos, fuentes por servidor, Data Mesh,
-ER preliminar) y `tablas/` (inventario de fuentes, riesgos, dependencias, supuestos/restricciones,
-**trazabilidad campo→evidencia**, decisiones pendientes).
+Entregables en `work/<caso>/outputs/`: `discovery_final.md` y **`discovery_final.docx`** — el
+documento se arma como **suma de dos vistas**: *Parte I — Discovery inicial (general)* y
+*Parte II — Discovery técnico (profundo)*, más un cierre con **Temas faltantes y deuda técnica**
+(recolecta automáticamente todo lo no conocido, incl. alcance/objetivo) y **Cobertura de
+evidencia** (validador de fidelidad: el agente no inventa, todo cita `[E00x]`; ver
+`65_fidelidad.json`). Además `brechas.md`, `veredicto.json`, `diagramas/` (flujo de datos, fuentes
+por servidor con columnas, Data Mesh, ER preliminar) y `tablas/` (inventario de fuentes con
+**columnas/librerías/servidor origen**, riesgos, dependencias, supuestos/restricciones,
+**trazabilidad campo→evidencia**, decisiones pendientes, **temas faltantes**).
 
 ## Uso desde GitHub Copilot (VS Code)
 
@@ -71,7 +76,7 @@ python -m mcp_server.cli get         caso_demo E003     # contenido bajo demanda
 python -m mcp_server.cli pendientes  caso_demo          # transcripciones sin destilar
 python -m mcp_server.cli consolidar  caso_demo          # une destilados + detecta conflictos
 python -m mcp_server.cli score       caso_demo          # veredicto determinista
-python -m mcp_server.cli ensamblar   caso_demo          # doc + brechas + diagramas + matrices
+python -m mcp_server.cli ensamblar   caso_demo          # doc (.md + .docx) en 2 vistas + brechas + temas faltantes + fidelidad + diagramas + matrices
 python -m mcp_server.cli schema / rubrica               # contratos
 ```
 

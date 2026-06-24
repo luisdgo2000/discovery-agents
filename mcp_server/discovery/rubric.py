@@ -33,8 +33,10 @@ RUBRICA: List[Bloque] = [
     Bloque(
         id="negocio", titulo="Negocio / Caso de uso", peso=20, critico=True,
         preguntas=[
-            Pregunta("necesidad_negocio", "¿Cuál es la necesidad de negocio y el problema concreto que resuelve?"),
-            Pregunta("valor_esperado", "¿Cuál es el valor esperado / caso de negocio y su prioridad?"),
+            Pregunta("nombre_caso_uso", "¿Cuál es el nombre del caso de uso?"),
+            Pregunta("necesidad_negocio", "¿Cuál es el problema de negocio concreto que resuelve?"),
+            Pregunta("objetivo", "¿Cuál es el objetivo del caso de uso?"),
+            Pregunta("valor_esperado", "¿Cuál es el beneficio de atender el caso / valor esperado y su prioridad?"),
             Pregunta("alcance_in", "¿Cuál es el alcance incluido?"),
             Pregunta("alcance_out", "¿Qué queda explícitamente fuera del alcance?"),
             Pregunta("metricas_exito", "¿Cuáles son las métricas de éxito / KPIs y cómo se medirán?"),
@@ -46,15 +48,19 @@ RUBRICA: List[Bloque] = [
         preguntas=[
             Pregunta("solicitante", "¿Quién es el solicitante del caso de uso?"),
             Pregunta("dueno_producto", "¿Quién es el dueño final del producto de datos?"),
+            Pregunta("equipo_desarrollador", "¿Quiénes conforman el equipo desarrollador y sus roles?"),
             Pregunta("expertos_datos", "¿Quiénes son los expertos técnicos / del dato y sus contactos?"),
-            Pregunta("certificadores", "¿Quiénes son los certificadores (regional y por país)?", obligatoria=False),
+            Pregunta("expertos_por_pais", "¿Quiénes son los expertos por país?", obligatoria=False),
+            Pregunta("certificadores", "¿Quiénes certifican el producto de datos (regional y por país)?", obligatoria=False),
         ],
     ),
     Bloque(
         id="fuentes", titulo="Fuentes y datos", peso=22, critico=True,
         preguntas=[
-            Pregunta("fuentes", "¿Cuáles son las fuentes de datos?"),
+            Pregunta("fuentes", "¿Cuáles son las fuentes / tablas a llevar a la nube?"),
             Pregunta("servidor_origen", "¿En qué servidor/origen están (on-premise/cloud)?"),
+            Pregunta("columnas_fuentes", "¿Cuáles son las columnas necesarias por fuente?"),
+            Pregunta("librerias_fuentes", "¿Qué librerías / drivers se requieren para las fuentes origen?", obligatoria=False),
             Pregunta("volumetria", "¿Cuál es la volumetría de cada tabla/insumo (al menos 1 año)?"),
             Pregunta("frecuencia_latencia", "¿Cuál es la frecuencia de actualización / latencia requerida?"),
             Pregunta("logica_negocio", "¿Cuál es la lógica de negocio a nivel de queries (cómo se construye el dato)?"),

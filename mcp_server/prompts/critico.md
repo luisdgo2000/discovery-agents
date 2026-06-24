@@ -29,6 +29,9 @@ Devuelve EXCLUSIVAMENTE un JSON:
   fuentes sin servidor de origen).
 - Cada brecha debe traer una **pregunta poderosa** concreta y accionable para la próxima reunión.
 - Verifica especialmente lo crítico para factibilidad: fuentes+volumetría (≥1 año), servidor de
-  origen y habilitación (réplica anti-bloqueo), dueño del producto, datos sensibles, dependencias e
-  impedimentos con responsable/plan.
+  origen, **columnas necesarias y librerías por fuente**, habilitación (réplica anti-bloqueo),
+  solicitante / dueño / **equipo desarrollador**, expertos por país y certificadores, datos
+  sensibles, dependencias e impedimentos con responsable/plan.
+- Marca como brecha cualquier afirmación SIN evidencia `[E00x]` o marcada `DESCONOCIDO`: el agente
+  no debe inventar; lo no conocido va a "Temas faltantes y deuda técnica".
 - Sé directo. Sin relleno. La `recomendacion` final en una o dos frases (alineada al veredicto).

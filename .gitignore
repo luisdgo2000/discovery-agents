@@ -5,3 +5,6 @@ venv/
 work/
 outputs/
 .DS_Store
+
+# Bundle generado para Databricks (artefacto de transporte, no fuente)
+discovery-agents-databricks.py

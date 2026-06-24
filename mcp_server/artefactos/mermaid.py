@@ -63,6 +63,9 @@ def fuentes_por_servidor(fuentes: List[dict]) -> str:
         lineas.append(f'  subgraph {_nid(srv)}["{_lbl(srv)}"]')
         for f in fs:
             extra = f" — {f.get('volumetria')}" if str(f.get("volumetria", "")).strip() else ""
+            cols = f.get("columnas")
+            n_cols = len(cols) if isinstance(cols, list) else (1 if str(cols or "").strip() else 0)
+            extra += f" · {n_cols} col." if n_cols else ""
             sensible = " 🔒" if str(f.get("sensible", "")).strip().lower().startswith(("sí", "si")) else ""
             lineas.append(f'    {_nid(srv)}_{_nid(f.get("tabla"))}["{_lbl(f.get("tabla"))}{_lbl(extra)}{sensible}"]')
         lineas.append("  end")

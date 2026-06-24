@@ -13,9 +13,11 @@ _TMP = tempfile.mkdtemp(prefix="discovery_test_")
 os.environ["DISCOVERY_WORK_ROOT"] = _TMP
 
 from mcp_server import consolidator, workspace  # noqa: E402  (tras fijar el env)
+from mcp_server.artefactos.docx_export import docx_disponible, exportar_docx  # noqa: E402
 from mcp_server.artefactos.mermaid import generar_diagramas  # noqa: E402
 from mcp_server.artefactos.tablas import generar_tablas, matriz_trazabilidad  # noqa: E402
-from mcp_server.discovery.assembler import ensamblar_discovery  # noqa: E402
+from mcp_server.discovery.assembler import ensamblar_discovery, recolectar_temas_faltantes  # noqa: E402
+from mcp_server.discovery.fidelidad import verificar_fidelidad  # noqa: E402
 from mcp_server.discovery.scorer import score_discovery  # noqa: E402
 from mcp_server.discovery.template import schema_vacio  # noqa: E402
 from mcp_server.extractors.excel import extract_excel  # noqa: E402
@@ -33,11 +35,14 @@ def _discovery_completo():
             d[k] = "valor de prueba [E001]"
     d["solicitante"] = {"nombre": "María Solís", "rol": "Gerente", "contacto": "msolis@x.com"}
     d["dueno_producto"] = {"nombre": "Carlos Vega", "rol": "PO", "contacto": "cvega@x.com"}
+    d["equipo_desarrollador"] = [{"nombre": "Luis Mora", "rol": "Data Engineer", "contacto": "lm@x.com"}]
     d["expertos_datos"] = [{"nombre": "Juan Pérez", "especialidad": "SQL", "contacto": "jp@x.com"}]
+    d["expertos_por_pais"] = [{"nombre": "Sofía Díaz", "pais": "CRI", "especialidad": "Pagos", "contacto": "sd@x.com"}]
     d["certificadores"] = [{"nombre": "Ana Rojas", "ambito": "REG"}]
     d["fuentes"] = [
-        {"tabla": "TRX", "esquema": "dbo", "servidor": "SQLPROD01", "volumetria": "400M/año",
-         "frecuencia": "Diaria", "sensible": "No", "evidencia": "E001"},
+        {"tabla": "TRX", "esquema": "dbo", "servidor": "SQLPROD01",
+         "columnas": ["id", "monto", "fecha"], "librerias": "pyodbc",
+         "volumetria": "400M/año", "frecuencia": "Diaria", "sensible": "No", "evidencia": "E001"},
     ]
     d["entidades"] = [{"nombre": "Transaccion", "descripcion": "x", "relaciones": ["Comercio"]},
                       {"nombre": "Comercio", "descripcion": "y", "relaciones": []}]
@@ -249,6 +254,95 @@ class TestAssemblerArtefactos(unittest.TestCase):
         self.assertIn("TRX", tablas["inventario_fuentes.md"])
         self.assertIn("Definir corte", tablas["matriz_decisiones.md"])
         self.assertIn("E001", tablas["matriz_trazabilidad.md"])
+
+
+# =============================================================================================
+# v3 — Dos vistas, temas faltantes, fidelidad y export docx
+# =============================================================================================
+class TestDosVistas(unittest.TestCase):
+    def test_documento_tiene_parte_general_y_tecnica(self):
+        md = ensamblar_discovery(_discovery_completo(), caso_de_uso="Caso X")["markdown"]
+        self.assertIn("Parte I — Discovery inicial (general)", md)
+        self.assertIn("Parte II — Discovery técnico (profundo)", md)
+        self.assertIn("Cierre — Evaluación", md)
+
+    def test_fuentes_muestran_columnas_y_librerias(self):
+        md = ensamblar_discovery(_discovery_completo(), caso_de_uso="Caso X")["markdown"]
+        self.assertIn("Columnas", md)       # encabezado de tabla de fuentes
+        self.assertIn("Librerias", md)
+        self.assertIn("pyodbc", md)
+
+
+class TestTemasFaltantes(unittest.TestCase):
+    def test_schema_vacio_genera_temas_faltantes(self):
+        res = ensamblar_discovery(schema_vacio(), caso_de_uso="Caso X")
+        self.assertGreater(len(res["temas_faltantes"]), 0)
+        self.assertIn("Temas faltantes y deuda técnica", res["markdown"])
+
+    def test_falta_objetivo_aparece_en_temas(self):
+        d = _discovery_completo()
+        d["objetivo"] = ""   # se desconoce el objetivo
+        res = ensamblar_discovery(d, caso_de_uso="Caso X")
+        puntos = " ".join(t["punto"] for t in res["temas_faltantes"]).lower()
+        self.assertIn("objetivo", puntos)
+
+    def test_supuesto_sin_validar_es_deuda(self):
+        score = score_discovery(_discovery_completo())
+        d = _discovery_completo()
+        d["supuestos"] = [{"descripcion": "Volumetría asumida", "validado_por": ""}]
+        temas = recolectar_temas_faltantes(score, d, None)
+        tipos = {t["tipo"] for t in temas}
+        self.assertIn("supuesto_no_validado", tipos)
+
+    def test_inconsistencias_se_integran(self):
+        score = score_discovery(_discovery_completo())
+        inc = {"vacios_no_capturados_por_rubrica": ["Falta política de retención"],
+               "decisiones_pendientes": [{"decision": "Definir corte", "decisor_sugerido": "PO",
+                                          "urgencia": "alta"}]}
+        temas = recolectar_temas_faltantes(score, _discovery_completo(), inc)
+        puntos = " ".join(t["punto"] for t in temas)
+        self.assertIn("retención", puntos)
+        self.assertIn("Definir corte", puntos)
+
+
+class TestFidelidad(unittest.TestCase):
+    def test_campo_sin_cita_se_detecta(self):
+        d = _discovery_completo()
+        d["necesidad_negocio"] = "Resolver reportería manual"   # sin [E00x]
+        fid = verificar_fidelidad(d, redaccion_md=None, index=None)
+        etiquetas = " ".join(fid["campos_sin_cita"])
+        self.assertIn("Problema de negocio", etiquetas)
+        self.assertLess(fid["cobertura_pct"], 100.0)
+
+    def test_cita_invalida_contra_indice(self):
+        d = _discovery_completo()
+        d["necesidad_negocio"] = "Algo respaldado [E999]"
+        index = {"items": [{"id": "E001"}]}
+        fid = verificar_fidelidad(d, redaccion_md=None, index=index)
+        self.assertTrue(any(c["cita"].startswith("E999") for c in fid["citas_invalidas"]))
+
+    def test_parrafo_narrativa_sin_cita(self):
+        narr = ("Este es un párrafo largo que afirma un hecho de negocio sin citar ninguna "
+                "evidencia que lo respalde, por lo que debería marcarse como no anclado.")
+        fid = verificar_fidelidad(_discovery_completo(), redaccion_md=narr, index=None)
+        self.assertEqual(len(fid["parrafos_sin_cita"]), 1)
+
+
+class TestDocxExport(unittest.TestCase):
+    def test_genera_docx_con_partes(self):
+        if not docx_disponible():
+            self.skipTest("python-docx no instalado")
+        from docx import Document
+        out = os.path.join(_TMP, "demo.docx")
+        d = _discovery_completo()
+        fid = verificar_fidelidad(d, redaccion_md=None, index={"items": [{"id": "E001"}]})
+        ruta = exportar_docx(out, d, caso="Caso X", redaccion_md="## Contexto\nNarrativa [E001].",
+                             fidelidad=fid, diagramas=generar_diagramas(d, "Caso X"))
+        self.assertEqual(ruta, out)
+        texto = "\n".join(p.text for p in Document(out).paragraphs)
+        self.assertIn("Parte I — Discovery inicial (general)", texto)
+        self.assertIn("Parte II — Discovery técnico (profundo)", texto)
+        self.assertIn("Cobertura de evidencia", texto)
 
 
 # =============================================================================================

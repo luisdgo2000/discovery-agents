@@ -98,6 +98,8 @@ def generar_tablas(discovery: dict, inconsistencias: Optional[dict] = None) -> D
             + matriz_trazabilidad(discovery),
         "matriz_decisiones.md": "# Matriz de decisiones pendientes\n\n"
             + matriz_decisiones(inconsistencias),
+        "matriz_temas_faltantes.md": "# Temas faltantes y deuda técnica\n\n"
+            + render_clave("temas_faltantes", discovery.get("temas_faltantes", [])),
     }
 
 

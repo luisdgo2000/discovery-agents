@@ -35,11 +35,15 @@ Redacta de modo que CUALQUIER lector (ejecutivo o técnico) comprenda sin contex
 }
 ```
 
-## Reglas
+## Reglas (fidelidad ante todo)
 - Narrativa profesional y fluida; nada de relleno ni jerga innecesaria. Idioma: español.
-- Cada afirmación factual cita su evidencia `[E00x]`. Si no puedes citarla, márcala
-  explícitamente como **supuesto**.
-- No inventes. No repitas las tablas que el ensamblador anexa. No recalcules el veredicto.
+- **Razona SOLO dentro de los insumos.** Cada afirmación factual cita su evidencia `[E00x]`. Si no
+  puedes citarla, márcala explícitamente como **supuesto** o como dato **DESCONOCIDO** — nunca la
+  inventes ni la presentes como hecho. Un verificador determinista marcará los párrafos sin cita.
+- Lo que el discovery dejó como `PENDIENTE`/`DESCONOCIDO` (alcance, objetivo, columnas, librerías,
+  métricas, etc.) NO se rellena con suposiciones: se reporta en `vacios_no_capturados_por_rubrica`
+  y/o se nombra en el cuerpo. El sistema lo consolida en la sección "Temas faltantes y deuda técnica".
+- No repitas las tablas que el ensamblador anexa. No recalcules el veredicto.
 - Si hay `conflictos` sin resolver, decláralos en el cuerpo del documento: un Discovery que
   oculta contradicciones es peor que uno incompleto.
 - Detecta y reporta inconsistencias ADICIONALES a las numéricas que Python ya encontró

@@ -23,9 +23,11 @@ import sys
 from typing import List
 
 from . import consolidator, workspace
+from .artefactos.docx_export import exportar_docx
 from .artefactos.mermaid import generar_diagramas
 from .artefactos.tablas import generar_tablas
 from .discovery.assembler import ensamblar_discovery
+from .discovery.fidelidad import verificar_fidelidad
 from .discovery.rubric import rubrica_serializable
 from .discovery.scorer import score_discovery
 from .discovery.template import schema_vacio
@@ -94,21 +96,39 @@ def main(argv: List[str]) -> int:
             return 1
         redaccion = workspace.load_text(caso, "60_redaccion.md")
         inconsistencias = workspace.load_json(caso, "60_inconsistencias.json")
-        resultado = ensamblar_discovery(discovery, caso_de_uso=caso, redaccion_md=redaccion)
+        index = workspace.load_json(caso, os.path.join("10_evidence", "index.json"))
+
+        # Verificación de fidelidad (sin inventar): citas reales contra el índice de evidencia.
+        fidelidad = verificar_fidelidad(discovery, redaccion, index)
+        workspace.save_json(caso, "65_fidelidad.json", fidelidad)
+
+        resultado = ensamblar_discovery(discovery, caso_de_uso=caso, redaccion_md=redaccion,
+                                        inconsistencias=inconsistencias, fidelidad=fidelidad)
+        # Inyecta los temas faltantes recolectados para que los artefactos los reflejen.
+        discovery["temas_faltantes"] = resultado["temas_faltantes"]
 
         workspace.save_text(caso, "outputs/discovery_final.md", resultado["markdown"])
         workspace.save_text(caso, "outputs/brechas.md", resultado["brechas_markdown"])
         workspace.save_json(caso, "outputs/veredicto.json", resultado["veredicto"])
         workspace.save_json(caso, "55_score.json", resultado["score"])
-        for nombre, contenido in generar_diagramas(discovery, caso).items():
+        diagramas = generar_diagramas(discovery, caso)
+        for nombre, contenido in diagramas.items():
             workspace.save_text(caso, os.path.join("outputs", "diagramas", nombre), contenido)
         for nombre, contenido in generar_tablas(discovery, inconsistencias).items():
             workspace.save_text(caso, os.path.join("outputs", "tablas", nombre), contenido)
 
+        # Entregable final en Word (.docx). Degrada con gracia si falta python-docx.
+        docx_path = os.path.join(workspace.work_dir(caso), "outputs", "discovery_final.docx")
+        generado = exportar_docx(docx_path, discovery, caso=caso, score=resultado["score"],
+                                 redaccion_md=redaccion, fidelidad=fidelidad, diagramas=diagramas)
+
         v = resultado["veredicto"]
-        print(f"Veredicto: {v['veredicto']} ({v['completitud_total']}%) — {v['n_brechas']} brechas"
-              + (" — narrativa del Redactor incluida" if redaccion else " — sin narrativa (60_redaccion.md)"))
-        print(f"Entregables en work/{caso}/outputs/ (doc, brechas, veredicto, diagramas/, tablas/)")
+        print(f"Veredicto: {v['veredicto']} ({v['completitud_total']}%) — {v['n_brechas']} brechas, "
+              f"{v['n_temas_faltantes']} temas faltantes"
+              + (" — narrativa incluida" if redaccion else " — sin narrativa (60_redaccion.md)"))
+        print(f"Fidelidad: {fidelidad['cobertura_pct']}% de cobertura de evidencia")
+        print(f"Entregables en work/{caso}/outputs/ (doc, brechas, veredicto, diagramas/, tablas/"
+              + (", discovery_final.docx)" if generado else ") — .docx omitido: instala python-docx"))
         return 0
 
     print(f"Comando desconocido: {cmd}\n{__doc__}")

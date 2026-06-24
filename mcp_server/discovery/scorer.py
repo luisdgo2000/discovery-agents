@@ -62,6 +62,14 @@ def _v_volumetria(d: dict) -> bool:
     )
 
 
+def _campo_fuente_no_vacio(campo: str) -> Callable[[dict], bool]:
+    """Validador derivado de fuentes[]: TODAS las fuentes deben traer `campo` con contenido."""
+    def chequear(d: dict) -> bool:
+        fuentes = _fuentes_validas(d)
+        return bool(fuentes) and all(_no_vacio(f.get(campo)) for f in fuentes)
+    return chequear
+
+
 def _v_persona(clave: str) -> Callable[[dict], bool]:
     def chequear(d: dict) -> bool:
         p = d.get(clave)
@@ -84,11 +92,15 @@ def _v_lista_personas(clave: str) -> Callable[[dict], bool]:
 # clave de la rúbrica → validador específico (default: _no_vacio sobre discovery[clave])
 VALIDADORES: Dict[str, Callable[[dict], bool]] = {
     "fuentes": _v_fuentes,
-    "servidor_origen": _v_servidor_origen,   # derivada de fuentes[] — no es campo propio
-    "volumetria": _v_volumetria,             # derivada de fuentes[] — no es campo propio
+    "servidor_origen": _v_servidor_origen,           # derivada de fuentes[] — no es campo propio
+    "volumetria": _v_volumetria,                     # derivada de fuentes[] — no es campo propio
+    "columnas_fuentes": _campo_fuente_no_vacio("columnas"),   # columnas necesarias por fuente
+    "librerias_fuentes": _campo_fuente_no_vacio("librerias"), # librerías/drivers por fuente
     "solicitante": _v_persona("solicitante"),
     "dueno_producto": _v_persona("dueno_producto"),
+    "equipo_desarrollador": _v_lista_personas("equipo_desarrollador"),
     "expertos_datos": _v_lista_personas("expertos_datos"),
+    "expertos_por_pais": _v_lista_personas("expertos_por_pais"),
     "certificadores": _v_lista_personas("certificadores"),
 }
 
