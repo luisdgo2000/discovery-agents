@@ -1,0 +1,24 @@
+0:00:12 María Solís
+Eh, bueno, el problema es que hoy el cierre nos toma entre cuatro y seis días. Este, el equipo
+descarga de SQLPROD01 a mano y arma el consolidado en Excel.
+
+0:01:40 María Solís
+Cada mes aparecen diferencias. El mes pasado fueron ochenta millones de colones que tuvimos que
+revisar comercio por comercio.
+
+0:03:05 Carlos Vega
+Como dueño del producto de datos yo lo que necesito es que la facturación esté disponible al día
+siguiente, no a los seis días.
+
+0:04:22 Carlos Vega
+El beneficio que estimamos es de unos 120 millones de colones al año, entre horas de Operaciones
+y las notas de crédito que hoy emitimos por errores de conciliación.
+
+0:06:10 Juan Pérez
+Ojo que leer directo de producción nos va a dar bloqueos. Ya nos pasó con el proyecto de tarjetas.
+
+0:07:55 Juan Pérez
+Necesitamos una réplica no transaccional para no bloquear producción. Sin eso yo no firmo.
+
+0:09:30 Sofía Díaz
+Para Costa Rica la certificación la hace Regulatorio. Ana Rojas es quien firma.

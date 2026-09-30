@@ -1,4 +1,4 @@
-# Discovery Agents (v2)
+# Discovery Agents (v4)
 
 Ecosistema multiagente para construir el **Discovery de un producto de datos** de nivel
 empresarial a partir de una carpeta de insumos (caso de uso, discovery inicial/técnico, hallazgos,
@@ -14,7 +14,7 @@ integral que originó la v2 está en [docs/REVISION_INTEGRAL.md](docs/REVISION_I
 1. **Orquestación — agentes de GitHub Copilot** (`.github/chatmodes/`): orquestador
    *Discovery Architect* + 5 subagentes (Destilador, Constructor, Hipótesis, Crítico y
    **Redactor Experto**, el núcleo intelectual).
-2. **Capacidades — servidor MCP en Python** (`mcp_server/`): todo lo determinista (0 tokens).
+2. **Capacidades — servidor MCP en Python** (`discovery_agents/`): todo lo determinista (0 tokens).
 3. **Workspace de estado** (`work/<caso>/`): la memoria compartida es el disco, no el chat.
    Cada fase escribe su resultado (`save_state`) y la siguiente lo lee (`load_state`); el LLM
    solo ve índices (~500 tokens) y pide contenido bajo demanda (`get_evidence(caso, id, chunk)`).
@@ -35,12 +35,19 @@ integral que originó la v2 está en [docs/REVISION_INTEGRAL.md](docs/REVISION_I
 | F4 | Hipótesis y arquetipos DataMesh | IA fuerte |
 | F5 | Score/veredicto determinista + crítica con preguntas poderosas | Python + IA fuerte |
 | F6 | **Redactor Experto**: narrativa empresarial (as-is/to-be, factibilidad S/M/L/XL) + inconsistencias | IA fuerte |
-| F7 | Ensamblado server-side: doc final, brechas, veredicto, **diagramas Mermaid** y **matrices** · **[G2: humano aprueba]** | Python (0 tk) |
+| F7 | `assemble` / `ensamblar` (misma función): doc **.md + .docx** narrativo-first, **Resumen Ejecutivo `.html`**, brechas, **temas faltantes**, **fidelidad**, **diagramas Mermaid** y **matrices** · **[G2: humano aprueba]** | Python (0 tk) |
 
-Entregables en `work/<caso>/outputs/`: `discovery_final.md` (narrativa + anexos),
-`brechas.md`, `veredicto.json`, `diagramas/` (flujo de datos, fuentes por servidor, Data Mesh,
-ER preliminar) y `tablas/` (inventario de fuentes, riesgos, dependencias, supuestos/restricciones,
-**trazabilidad campo→evidencia**, decisiones pendientes).
+Entregables en `work/<caso>/outputs/`: `discovery_final.md`, **`discovery_final.docx`** (Word
+narrativo-first: tablas solo donde aportan) y **`resumen_ejecutivo.html`** (Executive Summary
+standalone, moderno y responsive, para presentar a líderes — no es copia del Word). El documento se
+arma como **suma de dos vistas**: *Parte I — Discovery inicial (general)* y
+*Parte II — Discovery técnico (profundo)*, más un cierre con **Temas faltantes y deuda técnica**
+(recolecta automáticamente todo lo no conocido, incl. alcance/objetivo) y **Cobertura de
+evidencia** (validador de fidelidad: el agente no inventa, todo cita `[E00x]`; ver
+`65_fidelidad.json`). Además `brechas.md`, `veredicto.json`, `diagramas/` (flujo de datos, fuentes
+por servidor con columnas, Data Mesh, ER preliminar) y `tablas/` (inventario de fuentes con
+**columnas/librerías/servidor origen**, riesgos, dependencias, supuestos/restricciones,
+**trazabilidad campo→evidencia**, decisiones pendientes, **temas faltantes**).
 
 ## Uso desde GitHub Copilot (VS Code)
 
@@ -66,19 +73,19 @@ inputs/<caso>/
 ## Uso determinista sin Copilot (CLI, Python ≥ 3.9)
 
 ```bash
-python -m mcp_server.cli evidencia   inputs/caso_demo   # extrae y persiste; imprime índice
-python -m mcp_server.cli get         caso_demo E003     # contenido bajo demanda por chunks
-python -m mcp_server.cli pendientes  caso_demo          # transcripciones sin destilar
-python -m mcp_server.cli consolidar  caso_demo          # une destilados + detecta conflictos
-python -m mcp_server.cli score       caso_demo          # veredicto determinista
-python -m mcp_server.cli ensamblar   caso_demo          # doc + brechas + diagramas + matrices
-python -m mcp_server.cli schema / rubrica               # contratos
+python -m discovery_agents evidencia   inputs/caso_demo   # extrae y persiste; imprime índice
+python -m discovery_agents get         caso_demo E003     # contenido bajo demanda por chunks
+python -m discovery_agents pendientes  caso_demo          # transcripciones sin destilar
+python -m discovery_agents consolidar  caso_demo          # une destilados + detecta conflictos
+python -m discovery_agents score       caso_demo          # veredicto determinista
+python -m discovery_agents ensamblar   caso_demo          # doc .md + .docx + resumen_ejecutivo.html + brechas + temas faltantes + fidelidad + diagramas + matrices
+python -m discovery_agents schema / rubrica               # contratos
 ```
 
 ## Pruebas
 
 ```bash
-PYTHONPATH="$PWD" python -m unittest discover -s tests -v   # 26 pruebas
+PYTHONPATH="$PWD" python -m unittest discover -s tests -v   # 80 pruebas
 ```
 Cubren: limpieza no destructiva ("no es cierto", "tipo de datos", "este servidor" se preservan),
 formatos reales de Teams, índice compacto (anti token-bomb), evidencia por chunks, lista blanca de

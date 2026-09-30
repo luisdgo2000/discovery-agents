@@ -1,0 +1,14 @@
+From: Juan Perez <jperez@bac.net>
+To: Luis Mora <lmora@bac.net>, Carlos Vega <cvega@bac.net>
+Subject: Acuerdo - replica no transaccional para adquirencia
+Date: Tue, 15 Jul 2026 16:20:00 -0600
+
+Confirmo lo hablado: Infraestructura habilita la replica no transaccional de SQLPROD01 antes del
+15 de agosto. El acceso a SQLPROD02 queda pendiente de aprobacion del DBA.
+
+Tambien confirmo que la volumetria vigente de TRX_ADQUIRENCIA es la del inventario, no la que
+mencione de memoria en la sesion.
+
+> Como quedamos entonces con la replica?
+De: Luis Mora
+Mensaje anterior del hilo que no aporta nada nuevo.

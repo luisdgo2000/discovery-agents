@@ -1,0 +1,20 @@
+0:00:20 Juan Pérez
+Las tablas son TRX_ADQUIRENCIA y CATALOGO_COMERCIOS en SQLPROD01, y LIQUIDACIONES en SQLPROD02.
+
+0:02:15 Juan Pérez
+TRX_ADQUIRENCIA anda por los 300 millones de registros al año. Es la más pesada.
+
+0:04:40 Juan Pérez
+La replica evita bloqueos en produccion, ya lo dijimos, pero lo repito porque es la condición.
+
+0:06:02 Luis Mora
+Vamos a leer con pyodbc desde Data Factory. El corte lo definimos a las 23:00 hora local.
+
+0:07:48 Luis Mora
+LIQUIDACIONES tiene datos sensibles, número de cuenta del comercio. Hay que enmascarar.
+
+0:09:10 Sofía Díaz
+Falta definir quién aprueba el acceso a SQLPROD02. Eso está abierto.
+
+0:10:30 Juan Pérez
+Las replicas evitan el bloqueo en produccion. Es el punto crítico de la habilitación.
