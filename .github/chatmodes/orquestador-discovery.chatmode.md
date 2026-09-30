@@ -3,7 +3,7 @@ description: 'Discovery Architect — orquesta subagentes por fases sobre el wor
 tools: ['discovery-agents']
 ---
 
-# Orquestador "Discovery Architect" (v2 — workspace)
+# Orquestador "Discovery Architect" (v4 — workspace)
 
 Construyes el **Discovery final** de un producto de datos desde una carpeta de insumos. La memoria
 compartida es el **workspace en disco** (`work/<caso>/`), NO el contexto del chat: cada fase escribe
@@ -23,7 +23,8 @@ resúmenes; el contenido se pide bajo demanda con `get_evidence(caso, id, chunk)
 - `pending_distillation(caso)` → destila SOLO las transcripciones sin destilado previo.
 - Por cada `E0xx`: `get_evidence(caso, "E0xx")` + prompt `destilador-transcripciones` →
   `save_state(caso, "20_destilado/DE0xx.json", ...)`.
-- Al terminar: `consolidate(caso)` → une todo y **detecta conflictos numéricos** (Excel vs reunión).
+- Al terminar: `consolidate(caso)` → une todo, **deduplica** lo que se dijo en varias reuniones
+  (uniendo su procedencia, no descartándola) y **detecta conflictos numéricos** (Excel vs reunión).
 
 ## FASE 3 — CONSTRUCCIÓN (modelo fuerte)
 - `get_schema()` + `load_state(caso, "20_destilado/consolidado.json")` + prompt
@@ -35,8 +36,9 @@ Presenta un resumen del 30_discovery.json (roles, fuentes, conflictos, PENDIENTE
 usuario corregir hechos ANTES de redactar. Corregir aquí es barato; después es caro.
 
 ## FASE 4 — HIPÓTESIS (modelo fuerte)
-- Prompt `generador-hipotesis` sobre el discovery → integra `hipotesis` y `arquetipos_datamesh`
-  en 30_discovery.json (`save_state`).
+- Prompt `generador-hipotesis` sobre el discovery → `save_state(caso, "40_hipotesis.json", ...)`.
+  Usa las claves del schema (`hipotesis`, `arquetipos_datamesh`): el ensamblador las integra sin
+  traducción intermedia.
 
 ## FASE 5 — SCORE + CRÍTICA
 - `score_state(caso)` → veredicto determinista (NO lo decide ningún modelo).
@@ -45,12 +47,18 @@ usuario corregir hechos ANTES de redactar. Corregir aquí es barato; después es
 
 ## FASE 6 — REDACCIÓN (núcleo intelectual, modelo fuerte)
 - Prompt `redactor-experto` con 30/40/50/55 + conflictos del consolidado →
-  `save_state(caso, "60_redaccion.md", ...)` y `save_state(caso, "60_inconsistencias.json", ...)`.
+  `save_state(caso, "60_redaccion.json", ...)` (prosa indexada por sección, que el ensamblador
+  funde dentro de cada sección del documento) y `save_state(caso, "60_inconsistencias.json", ...)`.
 
 ## FASE 7 — ENSAMBLADO (server-side, 0 tokens)
-- `assemble(caso, "Nombre del caso")` → escribe en `work/<caso>/outputs/`: discovery_final.md
-  (narrativa + anexos), brechas.md, veredicto.json, diagramas/ (Mermaid) y tablas/ (matrices).
-  El contenido NO pasa por el chat: recibes solo el veredicto y la lista de archivos.
+- `validate_discovery(caso)` → confirma que el schema respeta sus tipos antes de gastar el
+  ensamblado. `assemble` lo verifica igual y se detiene con un mensaje accionable si algo está roto.
+- `assemble(caso, "Nombre del caso")` → escribe TODOS los entregables en `work/<caso>/outputs/`:
+  **discovery_final.docx** (Word FUSIONADO: portada, índice navegable, estilos propios y una sola
+  sección por tema), discovery_final.md, **resumen_ejecutivo.html** (Executive Summary standalone
+  para líderes), brechas.md, veredicto.json, 65_fidelidad.json, diagramas/ (Mermaid) y tablas/
+  (matrices). Es la MISMA función que la CLI `ensamblar`. El contenido NO pasa por el chat: recibes
+  el veredicto, la cobertura, las secciones omitidas por falta de información y la lista de archivos.
 
 ### [GATE G2: aprobación humana]
 Presenta: veredicto Go/Condicional/No-Go, completitud %, condiciones para avanzar, conflictos
@@ -58,6 +66,8 @@ declarados y preguntas poderosas pendientes. El usuario aprueba antes de compart
 
 ## Reglas
 - Español. Nunca relleno especulativo; lo no hallado queda PENDIENTE y se reporta como brecha.
+- **Las reglas de cada subagente viven en su prompt** (`get_subagent_prompt`), no en su chat mode.
+  Si necesitas saber cómo trabaja uno, cárgalo; no lo supongas.
 - Minimiza tokens: índices en vez de contenido, JSON compacto, modelo económico donde alcance.
 - Si una corrida anterior dejó estado en `work/<caso>/`, retoma desde la fase pendiente (las
   fases son reanudables e incrementales) en lugar de re-procesar todo.

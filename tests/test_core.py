@@ -1,6 +1,7 @@
 """Pruebas del núcleo determinista v2 (unittest stdlib → corre en Python 3.9+ sin pytest)."""
 import json
 import os
+import sys
 import shutil
 import tempfile
 import unittest
@@ -12,19 +13,23 @@ DEMO = os.path.join(RAIZ, "inputs", "caso_demo")
 _TMP = tempfile.mkdtemp(prefix="discovery_test_")
 os.environ["DISCOVERY_WORK_ROOT"] = _TMP
 
-from mcp_server import consolidator, workspace  # noqa: E402  (tras fijar el env)
-from mcp_server.artefactos.docx_export import docx_disponible, exportar_docx  # noqa: E402
-from mcp_server.artefactos.mermaid import generar_diagramas  # noqa: E402
-from mcp_server.artefactos.tablas import generar_tablas, matriz_trazabilidad  # noqa: E402
-from mcp_server.discovery.assembler import ensamblar_discovery, recolectar_temas_faltantes  # noqa: E402
-from mcp_server.discovery.fidelidad import verificar_fidelidad  # noqa: E402
-from mcp_server.discovery.scorer import score_discovery  # noqa: E402
-from mcp_server.discovery.template import schema_vacio  # noqa: E402
-from mcp_server.extractors.excel import extract_excel  # noqa: E402
-from mcp_server.extractors.manifest import build_manifest  # noqa: E402
-from mcp_server.pipeline import construir_evidencia  # noqa: E402
-from mcp_server.prompts import cargar_prompt, listar_prompts  # noqa: E402
-from mcp_server.transcripts.cleaner import clean_transcript  # noqa: E402
+from discovery_agents import workspace
+from discovery_agents.knowledge import consolidador as consolidator  # noqa: E402  (tras fijar el env)
+from discovery_agents.render.docx_export import docx_disponible, exportar_docx  # noqa: E402
+from discovery_agents.render.mermaid import generar_diagramas  # noqa: E402
+from discovery_agents.render.tablas import generar_tablas, matriz_trazabilidad, render_clave  # noqa: E402
+from discovery_agents.render.html_export import render_html  # noqa: E402
+from discovery_agents.render.entregables import construir_entregables  # noqa: E402
+from discovery_agents.ingest.extractores.documentos import extract_document  # noqa: E402
+from discovery_agents.render.ensamblador import ensamblar_discovery, recolectar_temas_faltantes  # noqa: E402
+from discovery_agents.knowledge.fidelidad import verificar_fidelidad  # noqa: E402
+from discovery_agents.knowledge.scorer import score_discovery  # noqa: E402
+from discovery_agents.knowledge.schema import schema_vacio  # noqa: E402
+from discovery_agents.ingest.extractores.excel import extract_excel  # noqa: E402
+from discovery_agents.ingest.manifest import build_manifest  # noqa: E402
+from discovery_agents.ingest.pipeline import construir_evidencia  # noqa: E402
+from discovery_agents.prompts import cargar_prompt, listar_prompts  # noqa: E402
+from discovery_agents.ingest.transcripciones.cleaner import clean_transcript  # noqa: E402
 
 
 def _discovery_completo():
@@ -34,7 +39,12 @@ def _discovery_completo():
         if isinstance(v, str):
             d[k] = "valor de prueba [E001]"
     d["solicitante"] = {"nombre": "María Solís", "rol": "Gerente", "contacto": "msolis@x.com"}
-    d["dueno_producto"] = {"nombre": "Carlos Vega", "rol": "PO", "contacto": "cvega@x.com"}
+    d["dueno_producto"] = {"nombre": "Carlos Vega", "rol": "Dueño", "contacto": "cvega@x.com"}
+    d["product_owner"] = {"nombre": "Carlos Vega", "rol": "PO", "contacto": "cvega@x.com"}
+    d["lider_tecnico"] = {"nombre": "Juan Pérez", "rol": "Líder técnico", "contacto": "jp@x.com"}
+    d["casos_uso"] = [{"nombre": "Reportería diaria", "descripcion": "x", "evidencia": "E001"}]
+    d["hallazgos_tecnicos"] = [{"hallazgo": "H", "impacto": "I", "evidencia": "E001"}]
+    d["productos_relacionados"] = [{"nombre": "P", "relacion": "r", "evidencia": "E001"}]
     d["equipo_desarrollador"] = [{"nombre": "Luis Mora", "rol": "Data Engineer", "contacto": "lm@x.com"}]
     d["expertos_datos"] = [{"nombre": "Juan Pérez", "especialidad": "SQL", "contacto": "jp@x.com"}]
     d["expertos_por_pais"] = [{"nombre": "Sofía Díaz", "pais": "CRI", "especialidad": "Pagos", "contacto": "sd@x.com"}]
@@ -234,10 +244,42 @@ class TestAssemblerArtefactos(unittest.TestCase):
         self.assertIn("SQLPROD01", res["markdown"])
 
     def test_integra_narrativa_del_redactor(self):
-        res = ensamblar_discovery(_discovery_completo(), caso_de_uso="Caso X",
-                                  redaccion_md="## Contexto\nNarrativa del consultor [E001].")
-        self.assertIn("Narrativa del consultor", res["markdown"])
-        self.assertIn("Anexos", res["markdown"])
+        """La prosa se funde DENTRO de su sección, no en un bloque aparte."""
+        res = ensamblar_discovery(
+            _discovery_completo(), caso_de_uso="Caso X",
+            redaccion={"secciones": {"contexto": "Narrativa del consultor [E001]."}})
+        md = res["markdown"]
+        self.assertIn("Narrativa del consultor", md)
+        # El documento fusionado ya no tiene un bloque "Anexos — Información estructurada":
+        # la prosa y los datos de la sección "Contexto" viven juntos y en ese orden.
+        self.assertNotIn("Anexos — Información estructurada", md)
+        pos_seccion = md.index("## Contexto y problemática actual")
+        pos_prosa = md.index("Narrativa del consultor")
+        pos_dato = md.index("**Problemática actual:**")
+        self.assertLess(pos_seccion, pos_prosa)
+        self.assertLess(pos_prosa, pos_dato)
+
+    def test_acepta_redaccion_markdown_del_contrato_anterior(self):
+        """Un 60_redaccion.md antiguo se reparte por sus encabezados y sigue funcionando."""
+        res = ensamblar_discovery(
+            _discovery_completo(), caso_de_uso="Caso X",
+            redaccion={"markdown": "## Contexto y problema de negocio\nProsa vieja [E001]."})
+        self.assertIn("Prosa vieja", res["markdown"])
+
+    def test_ningun_dato_aparece_dos_veces(self):
+        """Regla del documento fusionado: cada tabla de datos aparece una sola vez."""
+        md = ensamblar_discovery(_discovery_completo(), caso_de_uso="Caso X")["markdown"]
+        self.assertEqual(md.count("| Tabla | Esquema | Servidor |"), 1)
+        self.assertEqual(md.count("**Objetivo del caso de uso:**"), 1)
+
+    def test_seccion_sin_datos_se_omite(self):
+        """Una sección sin prosa y sin datos no se imprime: se lista al cierre."""
+        d = _discovery_completo()
+        d["costos_finops"] = ""
+        res = ensamblar_discovery(d, caso_de_uso="Caso X")
+        self.assertIn("Costos preliminares (FinOps)", res["secciones_omitidas"])
+        self.assertNotIn("## Costos preliminares (FinOps)", res["markdown"])
+        self.assertIn("Información no capturada", res["markdown"])
 
     def test_diagramas_mermaid(self):
         diagramas = generar_diagramas(_discovery_completo(), "Caso X")
@@ -262,8 +304,8 @@ class TestAssemblerArtefactos(unittest.TestCase):
 class TestDosVistas(unittest.TestCase):
     def test_documento_tiene_parte_general_y_tecnica(self):
         md = ensamblar_discovery(_discovery_completo(), caso_de_uso="Caso X")["markdown"]
-        self.assertIn("Parte I — Discovery inicial (general)", md)
-        self.assertIn("Parte II — Discovery técnico (profundo)", md)
+        self.assertIn("Parte I — Discovery inicial (negocio)", md)
+        self.assertIn("Parte II — Discovery técnico (datos y habilitación)", md)
         self.assertIn("Cierre — Evaluación", md)
 
     def test_fuentes_muestran_columnas_y_librerias(self):
@@ -336,13 +378,50 @@ class TestDocxExport(unittest.TestCase):
         out = os.path.join(_TMP, "demo.docx")
         d = _discovery_completo()
         fid = verificar_fidelidad(d, redaccion_md=None, index={"items": [{"id": "E001"}]})
-        ruta = exportar_docx(out, d, caso="Caso X", redaccion_md="## Contexto\nNarrativa [E001].",
+        ruta = exportar_docx(out, d, caso="Caso X",
+                             redaccion={"secciones": {"contexto": "Narrativa [E001]."}},
                              fidelidad=fid, diagramas=generar_diagramas(d, "Caso X"))
         self.assertEqual(ruta, out)
+        documento = Document(out)
+        texto = "\n".join(p.text for p in documento.paragraphs)
+        self.assertIn("Parte I — Discovery inicial (negocio)", texto)
+        self.assertIn("Parte II — Discovery técnico (datos y habilitación)", texto)
+        self.assertIn("Cobertura de citas", texto)
+        self.assertIn("Narrativa", texto)
+
+    def test_docx_tiene_portada_indice_y_estilos(self):
+        if not docx_disponible():
+            self.skipTest("python-docx no instalado")
+        from docx import Document
+        out = os.path.join(_TMP, "demo_portada.docx")
+        d = _discovery_completo()
+        exportar_docx(out, d, caso="Caso X")
+        documento = Document(out)
+        texto = "\n".join(p.text for p in documento.paragraphs)
+        # Portada: el veredicto se ve antes que cualquier sección.
+        self.assertIn("DISCOVERY DE PRODUCTO DE DATOS", texto)
+        self.assertIn("Veredicto: Go", texto)
+        self.assertIn("Contenido", texto)          # título del índice
+        # Estilos propios creados por render/estilos_word.py
+        nombres = [s.name for s in documento.styles]
+        for estilo in ("DiscoveryCuerpo", "DiscoveryDato", "DiscoveryNota", "DiscoveryCita"):
+            self.assertIn(estilo, nombres)
+        # El índice y la numeración de páginas son campos de Word, no texto fijo.
+        xml = documento.element.xml
+        self.assertIn("TOC", xml)
+        self.assertIn("NUMPAGES", documento.sections[0].footer.paragraphs[0]._p.xml)
+
+    def test_docx_describe_los_diagramas_en_prosa(self):
+        if not docx_disponible():
+            self.skipTest("python-docx no instalado")
+        from docx import Document
+        out = os.path.join(_TMP, "demo_diagramas.docx")
+        d = _discovery_completo()
+        exportar_docx(out, d, caso="Caso X", diagramas=generar_diagramas(d, "Caso X"))
         texto = "\n".join(p.text for p in Document(out).paragraphs)
-        self.assertIn("Parte I — Discovery inicial (general)", texto)
-        self.assertIn("Parte II — Discovery técnico (profundo)", texto)
-        self.assertIn("Cobertura de evidencia", texto)
+        self.assertIn("Anexos", texto)
+        self.assertIn("SQLPROD01", texto)
+        self.assertIn("medallón", texto)   # lectura en prosa del flujo, no solo el código
 
 
 # =============================================================================================
@@ -365,5 +444,426 @@ class TestBasicos(unittest.TestCase):
             self.assertTrue(cargar_prompt(n).strip())
 
 
+# =============================================================================================
+# Evolución v3 — campos nuevos, narrativa-first, HTML ejecutivo, ensamblado unificado, formatos
+# =============================================================================================
+class TestCamposNuevos(unittest.TestCase):
+    def test_schema_incluye_campos_obligatorios(self):
+        d = schema_vacio()
+        for k in ("casos_uso", "fecha_discovery", "contexto", "problematica_actual",
+                  "product_owner", "lider_tecnico", "beneficio_economico",
+                  "hallazgos_tecnicos", "productos_relacionados", "mensajes_clave"):
+            self.assertIn(k, d)
+
+    def test_po_sin_nombre_no_da_go(self):
+        d = _discovery_completo()
+        d["product_owner"] = {"nombre": "", "rol": "", "contacto": ""}
+        self.assertNotEqual(score_discovery(d)["veredicto"], "Go")
+
+    def test_beneficio_economico_sin_evidencia_no_se_afirma(self):
+        d = _discovery_completo()
+        d["beneficio_economico"] = "Ahorra mucho dinero"  # sin [E00x]
+        md = ensamblar_discovery(d, caso_de_uso="X")["markdown"]
+        self.assertIn("No cuantificado con evidencia", md)
+
+
+class TestNarrativaFirst(unittest.TestCase):
+    def test_dependencias_como_prosa_no_tabla(self):
+        d = _discovery_completo()
+        salida = render_clave("dependencias", d["dependencias"])
+        self.assertNotIn("|", salida)          # no es tabla markdown
+        self.assertIn("**", salida)            # es prosa con enunciado en negrita
+
+    def test_fuentes_si_es_tabla(self):
+        d = _discovery_completo()
+        salida = render_clave("fuentes", d["fuentes"])
+        self.assertIn("|", salida)             # el inventario de fuentes SÍ es tabla
+
+    def test_matrices_auxiliares_fuerzan_tabla(self):
+        d = _discovery_completo()
+        tablas = generar_tablas(d)
+        self.assertIn("|", tablas["matriz_dependencias.md"])  # el archivo de matriz sí tabula
+
+
+class TestHtmlExport(unittest.TestCase):
+    def test_html_standalone_sin_refs_externas(self):
+        d = _discovery_completo()
+        d["nombre_caso_uso"] = "Caso Demo"
+        html = render_html(d, caso="Caso Demo", fidelidad={"cobertura_pct": 100.0})
+        self.assertNotIn("{{", html)                       # todos los tokens reemplazados
+        for ref in ("http://", "https://", "<link", "cdn"):
+            self.assertNotIn(ref, html)
+        self.assertIn("<!doctype html>", html.lower())
+        self.assertIn("Caso Demo", html)
+
+    def test_html_veredicto_clase_coincide(self):
+        d = _discovery_completo()  # completo → Go
+        html = render_html(d, caso="X")
+        self.assertIn('class="v-go"', html)
+
+    def test_html_escapa_datos(self):
+        d = _discovery_completo()
+        d["mensajes_clave"] = ["<script>alert(1)</script>"]
+        html = render_html(d, caso="X")
+        self.assertNotIn("<script>alert(1)", html)         # escapado
+        self.assertIn("&lt;script&gt;", html)
+
+
+class TestEntregablesUnificado(unittest.TestCase):
+    CASO = "caso_unif"
+
+    def setUp(self):
+        d = _discovery_completo()
+        d["fecha_discovery"] = ""   # vacío → debe derivarse del manifiesto
+        workspace.save_json(self.CASO, "30_discovery.json", d)
+        workspace.save_json(self.CASO, "00_manifest.json",
+                            {"items": [{"modificado": "2026-07-20T10:00:00"}]})
+        workspace.save_json(self.CASO, os.path.join("10_evidence", "index.json"),
+                            {"items": [{"id": "E001"}]})
+
+    def test_genera_md_html_y_fidelidad(self):
+        r = construir_entregables(self.CASO, caso_de_uso="Caso Unificado")
+        self.assertNotIn("error", r)
+        base = os.path.join(_TMP, self.CASO, "outputs")
+        self.assertTrue(os.path.exists(os.path.join(base, "discovery_final.md")))
+        self.assertTrue(os.path.exists(os.path.join(base, "resumen_ejecutivo.html")))
+        self.assertTrue(os.path.exists(os.path.join(_TMP, self.CASO, "65_fidelidad.json")))
+        if docx_disponible():
+            self.assertTrue(os.path.exists(os.path.join(base, "discovery_final.docx")))
+
+    def test_fecha_se_deriva_del_manifest(self):
+        construir_entregables(self.CASO, caso_de_uso="X")
+        html = workspace.load_text(self.CASO, "outputs/resumen_ejecutivo.html")
+        self.assertIn("2026-07-20", html)   # fecha rellenada desde el manifiesto
+
+
+class TestFormatos(unittest.TestCase):
+    def test_manifest_avisa_de_legacy(self):
+        tmp = tempfile.mkdtemp(prefix="fmt_")
+        os.makedirs(os.path.join(tmp, "fuentes"))
+        open(os.path.join(tmp, "fuentes", "viejo.xls"), "w").close()
+        m = build_manifest(tmp)
+        self.assertTrue(any("legacy" in a.lower() for a in m["advertencias"]))
+        self.assertEqual(m["total_items"], 0)  # el .xls no se cuenta como procesable
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_csv_se_extrae(self):
+        tmp = tempfile.mkdtemp(prefix="csv_")
+        ruta = os.path.join(tmp, "datos.csv")
+        with open(ruta, "w", encoding="utf-8") as fh:
+            fh.write("tabla,servidor\nTRX,SQLPROD01\n")
+        data = extract_document(ruta)
+        self.assertIn("TRX", data["texto"])
+        self.assertIn("SQLPROD01", data["texto"])
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+# =============================================================================================
+# v4 — Formatos nuevos, deduplicación, validación y sincronía de la documentación
+# =============================================================================================
+class TestRegistroDeFormatos(unittest.TestCase):
+    def test_toda_extension_tiene_adaptador(self):
+        """El registro es la única tabla: no puede clasificar algo que nadie sabe procesar."""
+        from discovery_agents.ingest.registry import FORMATOS, adaptador
+        for formato in FORMATOS:
+            self.assertTrue(callable(adaptador(formato.extractor)), formato.extension)
+
+    def test_extractor_desconocido_da_error_util(self):
+        from discovery_agents.ingest.registry import adaptador
+        with self.assertRaises(ValueError) as ctx:
+            adaptador("inventado")
+        self.assertIn("Categorías registradas", str(ctx.exception))
+
+    def test_informe_de_formatos(self):
+        from discovery_agents.ingest.registry import formatos_soportados
+        informe = formatos_soportados()
+        self.assertGreater(informe["total_extensiones"], 40)
+        for categoria in ("excel", "documento", "estructurado", "correo", "imagen", "legacy"):
+            self.assertIn(categoria, informe["por_extractor"])
+
+
+class TestExtractoresNuevos(unittest.TestCase):
+    def _escribir(self, nombre, contenido):
+        ruta = os.path.join(_TMP, nombre)
+        with open(ruta, "w", encoding="utf-8") as fh:
+            fh.write(contenido)
+        return ruta
+
+    def test_sql_aporta_tablas_al_inventario(self):
+        from discovery_agents.ingest.extractores.estructurados import extraer
+        ruta = self._escribir("carga.sql", """-- comentario con FROM que no cuenta
+            SELECT a.id FROM BACPROD.dbo.TRX_ADQUIRENCIA a
+            JOIN dbo.CATALOGO_COMERCIOS b ON a.cid = b.id;""")
+        registro, resumen, extras = extraer(ruta)
+        tablas = [t["tabla"] for t in extras["fuentes"]]
+        self.assertIn("TRX_ADQUIRENCIA", tablas)
+        self.assertIn("CATALOGO_COMERCIOS", tablas)
+        self.assertIn("SQL", resumen)
+        self.assertIn("vista_texto", registro)
+
+    def test_json_se_resume_por_estructura(self):
+        from discovery_agents.ingest.extractores.estructurados import extraer
+        ruta = self._escribir("conf.json",
+                              '{"origen":{"servidor":"SQLPROD01","tablas":[{"nombre":"TRX"}]}}')
+        registro, _, _ = extraer(ruta)
+        self.assertIn("origen.servidor: SQLPROD01", registro["vista_texto"])
+        self.assertIn("origen.tablas[0].nombre: TRX", registro["vista_texto"])
+
+    def test_correo_extrae_cabeceras_y_poda_el_hilo(self):
+        from discovery_agents.ingest.extractores.correo import extraer
+        ruta = self._escribir("acuerdo.eml", "From: Carlos Vega <cv@x.com>\n"
+                              "Subject: Acuerdo de replica\n"
+                              "Date: Mon, 14 Jul 2026 10:00:00 -0600\n\n"
+                              "Confirmamos la replica no transaccional.\n\n"
+                              "> texto citado del hilo anterior\n")
+        registro, resumen, _ = extraer(ruta)
+        self.assertIn("Carlos Vega", resumen)
+        self.assertIn("Acuerdo de replica", resumen)
+        self.assertIn("Confirmamos la replica", registro["vista_texto"])
+        self.assertNotIn("texto citado del hilo", registro["vista_texto"])
+
+    def test_html_se_extrae_sin_marcado(self):
+        from discovery_agents.ingest.extractores.documentos import extract_document
+        ruta = self._escribir("pagina.html",
+                              "<html><head><style>.x{color:red}</style></head>"
+                              "<body><h1>Fuentes</h1><p>La tabla TRX vive en SQLPROD01</p>"
+                              "<script>var a=1</script></body></html>")
+        texto = extract_document(ruta)["texto"]
+        self.assertIn("La tabla TRX vive en SQLPROD01", texto)
+        self.assertNotIn("color:red", texto)
+        self.assertNotIn("var a=1", texto)
+
+    def test_svg_se_lee_sin_ocr(self):
+        from discovery_agents.ingest.extractores.imagenes import extract_image
+        ruta = self._escribir("diagrama.svg",
+                              '<svg xmlns="http://www.w3.org/2000/svg">'
+                              '<text>SQLPROD01</text><text>Azure Data Factory</text></svg>')
+        data = extract_image(ruta)
+        self.assertIn("SQLPROD01", data["texto_ocr"])
+        self.assertFalse(data["requiere_vision_llm"])   # el XML no necesita modelo de visión
+
+    def test_legacy_sin_libreoffice_avisa_en_vez_de_romper(self):
+        from discovery_agents.ingest.extractores.legacy import ConversionNoDisponible, convertir
+        from discovery_agents.ingest.registry import soffice_ruta
+        if soffice_ruta():
+            self.skipTest("LibreOffice instalado: la conversión sí está disponible")
+        ruta = self._escribir("viejo.xls", "contenido binario simulado")
+        with self.assertRaises(ConversionNoDisponible) as ctx:
+            convertir(ruta)
+        self.assertIn("LibreOffice", str(ctx.exception))
+
+    def test_imagenes_incrustadas_se_listan(self):
+        """Un .docx/.pptx es un ZIP: sus medios se localizan sin librería alguna."""
+        import zipfile
+        from discovery_agents.ingest.extractores.embebidos import listar_incrustadas
+        ruta = os.path.join(_TMP, "presentacion.pptx")
+        with zipfile.ZipFile(ruta, "w") as z:
+            z.writestr("ppt/media/image1.png", b"\x89PNG" + b"0" * 20000)   # supera el mínimo
+            z.writestr("ppt/media/icono.png", b"\x89PNG" + b"0" * 100)      # icono: se ignora
+            z.writestr("ppt/slides/slide1.xml", "<xml/>")
+        incrustadas = listar_incrustadas(ruta)
+        self.assertEqual(incrustadas, ["ppt/media/image1.png"])
+
+
+class TestDeduplicacion(unittest.TestCase):
+    def test_funde_reformulaciones_y_une_procedencia(self):
+        from discovery_agents.knowledge.dedup import deduplicar
+        resultado = deduplicar([
+            {"hallazgo": "La replica evita bloqueos en produccion",
+             "evidencia": "E001", "segmentos": ["seg-004"]},
+            {"hallazgo": "Las replicas evitan el bloqueo en produccion",
+             "evidencia": "E002", "segmentos": ["seg-011"]},
+        ])
+        self.assertEqual(resultado["fusionados"], 1)
+        self.assertEqual(len(resultado["items"]), 1)
+        # La procedencia se GANA al fusionar, no se pierde. Cada campo conserva su tipo: la
+        # evidencia es un string en el schema y sigue siéndolo; los segmentos son una lista.
+        fundido = resultado["items"][0]
+        self.assertIn("E001", fundido["evidencia"])
+        self.assertIn("E002", fundido["evidencia"])
+        self.assertEqual(sorted(fundido["segmentos"]), ["seg-004", "seg-011"])
+        self.assertTrue(resultado["grupos"])   # la fusión queda auditable
+
+    def test_no_funde_hechos_distintos_con_vocabulario_comun(self):
+        """El error grave sería fundir dos tablas distintas por compartir la frase."""
+        from discovery_agents.knowledge.dedup import deduplicar
+        resultado = deduplicar([
+            {"hallazgo": "La tabla TRX tiene 400M registros"},
+            {"hallazgo": "La tabla CATALOGO tiene 400M registros"},
+        ])
+        self.assertEqual(resultado["fusionados"], 0)
+        self.assertEqual(len(resultado["items"]), 2)
+
+    def test_raiz_es_consistente_entre_singular_y_plural(self):
+        from discovery_agents.common.texto import raiz
+        for singular, plural in [("dato", "datos"), ("tabla", "tablas"), ("riesgo", "riesgos"),
+                                 ("servidor", "servidores"), ("fuente", "fuentes"),
+                                 ("pesada", "pesadas"), ("dependencia", "dependencias")]:
+            self.assertEqual(raiz(singular), raiz(plural), f"{singular}/{plural}")
+
+
+class TestValidadorDeForma(unittest.TestCase):
+    def test_lista_aplanada_a_texto_es_error(self):
+        from discovery_agents.knowledge.validador import validar_discovery
+        d = _discovery_completo()
+        d["fuentes"] = "TRX en SQLPROD01, LIQ en SQLPROD02"
+        informe = validar_discovery(d)
+        self.assertFalse(informe["valido"])
+        self.assertTrue(any("fuentes" in e for e in informe["errores"]))
+
+    def test_persona_aplanada_es_error(self):
+        from discovery_agents.knowledge.validador import validar_discovery
+        d = _discovery_completo()
+        d["dueno_producto"] = "Carlos Vega"
+        self.assertFalse(validar_discovery(d)["valido"])
+
+    def test_discovery_correcto_es_valido(self):
+        from discovery_agents.knowledge.validador import validar_discovery
+        self.assertTrue(validar_discovery(_discovery_completo())["valido"])
+
+    def test_ensamblado_se_detiene_con_discovery_roto(self):
+        from discovery_agents.render.entregables import construir_entregables
+        d = _discovery_completo()
+        d["riesgos"] = "hay riesgos de bloqueo"
+        workspace.save_json("caso_roto", "30_discovery.json", d)
+        resultado = construir_entregables("caso_roto")
+        self.assertIn("error", resultado)
+        self.assertTrue(resultado["detalles"])
+
+
+class TestCoherenciaDelVeredicto(unittest.TestCase):
+    def test_desconocido_no_cuenta_como_respondido(self):
+        """Un Discovery donde nadie supo nada no puede puntuar como completo."""
+        d = _discovery_completo()
+        for clave in ("objetivo", "alcance_in", "alcance_out", "metricas_exito"):
+            d[clave] = "DESCONOCIDO"
+        score = score_discovery(d)
+        self.assertNotEqual(score["veredicto"], "Go")
+        self.assertGreater(score["n_brechas"], 0)
+
+    def test_critica_del_critico_llega_a_temas_faltantes(self):
+        """50_critica.json se escribía y nadie lo leía: su trabajo no llegaba al documento."""
+        d = _discovery_completo()
+        critica = {"brechas_priorizadas": [{
+            "bloque": "Fuentes", "que_falta": "ventana temporal",
+            "por_que_importa": "cambia el dimensionamiento",
+            "pregunta_poderosa": "¿Cuál es la ventana temporal de la volumetría declarada?",
+            "severidad": "alta"}]}
+        res = ensamblar_discovery(d, caso_de_uso="Caso X", critica=critica)
+        puntos = " ".join(t["punto"] for t in res["temas_faltantes"])
+        self.assertIn("ventana temporal", puntos)
+        self.assertIn("ventana temporal", res["markdown"])
+
+    def test_riesgos_vacios_se_declaran_sin_inventar(self):
+        d = _discovery_completo()
+        d["riesgos"] = []
+        md = ensamblar_discovery(d, caso_de_uso="Caso X")["markdown"]
+        self.assertIn("No se identificaron riesgos", md)
+        self.assertIn("no garantía de su inexistencia", md)
+
+    def test_riesgos_se_agrupan_por_tipo(self):
+        d = _discovery_completo()
+        d["riesgos"] = [
+            {"descripcion": "Bloqueos en produccion", "tipo": "tecnico", "severidad": "alta"},
+            {"descripcion": "Duplicados en el origen", "tipo": "calidad", "severidad": "media"},
+        ]
+        md = ensamblar_discovery(d, caso_de_uso="Caso X")["markdown"]
+        self.assertIn("Técnicos", md)
+        self.assertIn("De calidad de datos", md)
+
+
+class TestHtmlEjecutivoV4(unittest.TestCase):
+    def test_incluye_completitud_por_bloque(self):
+        html = render_html(_discovery_completo(), caso="Caso X")
+        self.assertIn("Completitud por bloque", html)
+        self.assertIn("Umbral de Go", html)
+        self.assertIn("barra-fila", html)
+
+    def test_incluye_gobierno_y_beneficio(self):
+        html = render_html(_discovery_completo(), caso="Caso X")
+        self.assertIn("Gobierno del producto", html)
+        self.assertIn("Beneficio esperado", html)
+        self.assertIn("Carlos Vega", html)
+
+    def test_tiene_hoja_de_impresion_y_respeta_movimiento_reducido(self):
+        html = render_html(_discovery_completo(), caso="Caso X")
+        self.assertIn("@media print", html)
+        self.assertIn("prefers-reduced-motion", html)
+
+    def test_define_los_dos_temas_explicitamente(self):
+        """El interruptor del lector debe poder ganarle a la preferencia del sistema."""
+        html = render_html(_discovery_completo(), caso="Caso X")
+        self.assertIn('data-theme="dark"', html)
+        self.assertIn('data-theme="light"', html)
+        self.assertIn("prefers-color-scheme: dark", html)
+
+
+class TestDocumentacionSincronizada(unittest.TestCase):
+    """El Blueprint promete bastar para reconstruir el sistema; estas pruebas fijan esa promesa."""
+
+    _RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _blueprint(self):
+        with open(os.path.join(self._RAIZ, "docs", "BLUEPRINT.md"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_blueprint_refleja_el_codigo(self):
+        """Un Blueprint desactualizado reconstruiría una versión inferior del agente."""
+        import subprocess
+        proceso = subprocess.run(
+            [sys.executable, os.path.join(self._RAIZ, "tools", "sync_docs.py"), "--check"],
+            capture_output=True, text=True, cwd=self._RAIZ)
+        self.assertEqual(proceso.returncode, 0,
+                         f"Blueprint desincronizado. {proceso.stderr}")
+
+    def test_blueprint_embebe_todos_los_modulos_integros(self):
+        """Sin el código completo, el documento no basta para reconstruir nada."""
+        blueprint = self._blueprint()
+        paquete = os.path.join(self._RAIZ, "discovery_agents")
+        ausentes = []
+        for actual, dirs, archivos in os.walk(paquete):
+            dirs[:] = [d for d in dirs if d != "__pycache__"]
+            for archivo in archivos:
+                if not archivo.endswith(".py"):
+                    continue
+                ruta = os.path.join(actual, archivo)
+                with open(ruta, encoding="utf-8") as fh:
+                    fuente = fh.read().rstrip()
+                if fuente not in blueprint:
+                    ausentes.append(os.path.relpath(ruta, self._RAIZ))
+        self.assertEqual(ausentes, [], f"Módulos ausentes o truncados: {ausentes}")
+
+    def test_blueprint_embebe_los_entregables_y_contratos(self):
+        """La plantilla, la suite y los prompts también son necesarios para reconstruir."""
+        blueprint = self._blueprint()
+        for rel in ("discovery_agents/render/assets/executive.html", "tests/test_core.py"):
+            with open(os.path.join(self._RAIZ, rel), encoding="utf-8") as fh:
+                self.assertIn(fh.read().rstrip(), blueprint, rel)
+        for nombre in listar_prompts():
+            self.assertIn(cargar_prompt(nombre).rstrip(), blueprint, nombre)
+
+    def test_blueprint_no_depende_del_entorno_donde_se_creo(self):
+        """Debe poder leerse en cualquier máquina sin referencias a otra.
+
+        Los términos prohibidos se ensamblan por trozos a propósito: este archivo viaja embebido
+        dentro del Blueprint, así que escribirlos enteros aquí haría que la prueba se detectara a
+        sí misma y fallara siempre.
+        """
+        import re
+        blueprint = self._blueprint()
+        rutas = "/" + "Users" + "/|/" + "home" + "/[a-z]"
+        proveedores = "|".join(["chat" + "gpt", "open" + "ai", "anthro" + "pic"])
+        historial = "|".join(["historial de gener" + "acion", "prompt orig" + "inal"])
+        prohibidos = [
+            (rutas, "rutas absolutas de un sistema concreto"),
+            (r"(?i)\b(" + proveedores + r")\b", "nombres de proveedores de modelos"),
+            ("(?i)(" + historial + ")", "historial de generación"),
+        ]
+        for patron, descripcion in prohibidos:
+            encontrados = re.findall(patron, blueprint)
+            self.assertEqual(encontrados, [],
+                             f"El Blueprint contiene {descripcion}: {encontrados[:3]}")

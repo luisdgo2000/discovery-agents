@@ -3,7 +3,7 @@
     "discovery-agents": {
       "type": "stdio",
       "command": "python",
-      "args": ["-m", "mcp_server.server"],
+      "args": ["-m", "discovery_agents.interfaces.mcp_server"],
       "cwd": "${workspaceFolder}",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"

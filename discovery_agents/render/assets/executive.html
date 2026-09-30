@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="es" class="v-{{VEREDICTO_CLASE}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITULO}} — Resumen Ejecutivo del Discovery</title>
+<style>
+/* =============================================================================================
+   RESUMEN EJECUTIVO DEL DISCOVERY — plantilla reutilizable y standalone.
+   `render/html_export.py` solo sustituye los marcadores de doble llave; el diseño vive aquí.
+   Sin peticiones de red: todo el CSS y el JS son inline.
+
+   (Esta nota evita escribir un marcador literal: una prueba verifica que en el HTML generado no
+   quede ninguno sin resolver, y un ejemplo dentro de un comentario la haría fallar.)
+
+   Idea rectora: la pieza es un DICTAMEN MEDIDO, no un deck de marketing. Por eso se comporta
+   como un instrumento — neutros elegidos (no gris por defecto), una sola variable cromática
+   (el veredicto, que retiñe toda la interfaz) y monoespaciada para cada valor medido, porque la
+   mono dice "esto se calculó" y esa es justamente la tesis del sistema.
+
+   Para adaptarla a otra marca basta con reemplazar los tokens del bloque MARCA de :root.
+   ============================================================================================= */
+
+:root{
+  /* ---- MARCA: los únicos valores que hay que tocar para re-brandear ---- */
+  --porcelana:#F2F4F3;      /* fondo: neutro frío, elegido */
+  --superficie:#FFFFFF;
+  --superficie-2:#EAEEEC;
+  --tinta:#141A19;          /* casi negro con sesgo verde-pizarra */
+  --grafito:#5B6664;        /* texto secundario */
+  --filete:#D8DEDB;
+
+  /* Colores de estado. Verificados con el validador de paleta en claro y en oscuro: banda de
+     luminosidad, piso de croma, separación bajo daltonismo y contraste contra la superficie. */
+  --go:#0E6B42;
+  --cond:#A8730A;
+  --nogo:#A32218;
+
+  --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --serif:ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,"Source Serif 4",Georgia,serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+
+  --medida:72ch;
+  --radio:10px;
+  --sombra:0 1px 2px rgba(20,26,25,.05), 0 8px 24px -12px rgba(20,26,25,.14);
+}
+
+/* El veredicto es la única carga cromática de la página: tiñe píldora, glifo, medidores, filetes
+   y barras. Se declara una vez aquí y lo consumen todos los componentes. */
+html.v-go   { --dictamen:var(--go);   }
+html.v-cond { --dictamen:var(--cond); }
+html.v-nogo { --dictamen:var(--nogo); }
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --porcelana:#0E1413; --superficie:#161D1C; --superficie-2:#1D2625;
+    --tinta:#E8EDEB; --grafito:#96A29F; --filete:#28312F;
+    --go:#2E9C7E; --cond:#C08806; --nogo:#C64454;
+    --sombra:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+/* El interruptor del lector manda sobre la preferencia del sistema, en los dos sentidos. */
+:root[data-theme="light"]{
+  --porcelana:#F2F4F3; --superficie:#FFFFFF; --superficie-2:#EAEEEC;
+  --tinta:#141A19; --grafito:#5B6664; --filete:#D8DEDB;
+  --go:#0E6B42; --cond:#A8730A; --nogo:#A32218;
+  --sombra:0 1px 2px rgba(20,26,25,.05), 0 8px 24px -12px rgba(20,26,25,.14);
+}
+:root[data-theme="dark"]{
+  --porcelana:#0E1413; --superficie:#161D1C; --superficie-2:#1D2625;
+  --tinta:#E8EDEB; --grafito:#96A29F; --filete:#28312F;
+  --go:#2E9C7E; --cond:#C08806; --nogo:#C64454;
+  --sombra:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--porcelana); color:var(--tinta);
+  font:400 16px/1.65 var(--sans);
+  text-rendering:optimizeLegibility;
+}
+:focus-visible{outline:2px solid var(--dictamen); outline-offset:3px; border-radius:3px}
+
+/* ---------- Estructura ---------- */
+.envoltura{max-width:var(--medida); margin:0 auto; padding:0 22px}
+main{display:flex; flex-direction:column; gap:52px; padding-bottom:64px}
+section{scroll-margin-top:72px}
+
+/* ---------- Barra superior ---------- */
+.barra{
+  position:sticky; top:0; z-index:20;
+  background:color-mix(in srgb, var(--porcelana) 86%, transparent);
+  backdrop-filter:saturate(1.5) blur(12px);
+  border-bottom:1px solid var(--filete);
+}
+.barra .envoltura{display:flex; align-items:center; gap:18px; min-height:54px}
+.marca{font:600 12px/1 var(--sans); letter-spacing:.14em; text-transform:uppercase; color:var(--grafito)}
+.barra nav{margin-left:auto; display:flex; gap:20px}
+.barra nav a{
+  color:var(--grafito); text-decoration:none; font-size:13px;
+  padding:4px 0; border-bottom:1.5px solid transparent; transition:color .2s, border-color .2s;
+}
+.barra nav a:hover{color:var(--tinta); border-bottom-color:var(--dictamen)}
+.pildora{
+  display:inline-flex; align-items:center; gap:7px;
+  font:600 12px/1 var(--mono); letter-spacing:.03em;
+  color:var(--dictamen); background:color-mix(in srgb, var(--dictamen) 11%, transparent);
+  border:1px solid color-mix(in srgb, var(--dictamen) 34%, transparent);
+  padding:6px 11px; border-radius:99px; white-space:nowrap;
+}
+.tema{
+  background:none; border:1px solid var(--filete); color:var(--grafito);
+  width:32px; height:32px; border-radius:8px; cursor:pointer; display:grid; place-items:center;
+  transition:border-color .2s, color .2s; flex:none;
+}
+.tema:hover{color:var(--tinta); border-color:var(--grafito)}
+.tema svg{width:15px; height:15px}
+
+/* ---------- Encabezado ---------- */
+.hero{padding-top:56px}
+.eyebrow{
+  font:600 11px/1 var(--sans); letter-spacing:.18em; text-transform:uppercase;
+  color:var(--grafito); margin:0 0 14px;
+}
+h1{
+  font:600 clamp(30px,5.2vw,46px)/1.14 var(--serif);
+  letter-spacing:-.015em; margin:0 0 16px; text-wrap:balance;
+}
+.meta{
+  display:flex; flex-wrap:wrap; gap:8px 22px; margin:0 0 26px;
+  font:500 12.5px/1 var(--mono); color:var(--grafito); font-variant-numeric:tabular-nums;
+}
+.meta span{display:inline-flex; gap:7px; align-items:baseline}
+.meta b{color:var(--tinta); font-weight:600}
+.tesis{
+  font:400 clamp(17px,2.4vw,21px)/1.55 var(--serif);
+  color:var(--tinta); margin:0; max-width:60ch; text-wrap:pretty;
+}
+
+/* ---------- Dictamen: la banda que concentra todo el color ---------- */
+.dictamen{
+  margin-top:34px; background:var(--superficie); border:1px solid var(--filete);
+  border-left:3px solid var(--dictamen);
+  border-radius:var(--radio); box-shadow:var(--sombra);
+  padding:24px 26px; display:grid; gap:22px;
+  grid-template-columns:minmax(210px,1fr) minmax(240px,.9fr);
+}
+.dictamen .juicio{display:flex; gap:15px; align-items:flex-start}
+.glifo{
+  flex:none; width:38px; height:38px; border-radius:10px; display:grid; place-items:center;
+  background:color-mix(in srgb, var(--dictamen) 13%, transparent);
+  color:var(--dictamen); font:700 19px/1 var(--sans);
+}
+.juicio h2{margin:0 0 5px; font:600 19px/1.2 var(--serif); color:var(--dictamen)}
+.juicio p{margin:0; font-size:13.5px; color:var(--grafito); line-height:1.5}
+
+/* Medidores: barra fina, extremo redondeado, anclada a la línea base. */
+.medidores{display:flex; flex-direction:column; gap:15px; justify-content:center}
+.medidor .fila-medidor{
+  display:flex; justify-content:space-between; align-items:baseline; gap:12px;
+  font:500 12px/1 var(--sans); color:var(--grafito); margin-bottom:7px;
+}
+.medidor .fila-medidor b{font:600 15px/1 var(--mono); color:var(--tinta); font-variant-numeric:tabular-nums}
+.pista{height:6px; background:var(--superficie-2); border-radius:99px; overflow:hidden}
+.relleno{
+  height:100%; width:0; border-radius:99px; background:var(--dictamen);
+  transition:width 1.1s cubic-bezier(.22,1,.36,1);
+}
+
+/* ---------- Indicadores ---------- */
+.indicadores{
+  display:grid; gap:1px; background:var(--filete);
+  border:1px solid var(--filete); border-radius:var(--radio); overflow:hidden;
+  grid-template-columns:repeat(auto-fit,minmax(148px,1fr));
+}
+.indicador{background:var(--superficie); padding:17px 18px}
+.indicador .rotulo{
+  font:600 10.5px/1 var(--sans); letter-spacing:.13em; text-transform:uppercase;
+  color:var(--grafito); margin-bottom:9px;
+}
+.indicador .valor{
+  font:600 24px/1.1 var(--mono); color:var(--tinta); font-variant-numeric:tabular-nums;
+  letter-spacing:-.02em;
+}
+.indicador .nota{font-size:11.5px; color:var(--grafito); margin-top:5px}
+
+/* ---------- Cabecera de sección ----------
+   Filete + versalitas. Sin marcadores 01/02/03: las secciones son una jerarquía de asuntos,
+   no una secuencia, y numerar lo que no lleva orden decora en vez de informar. */
+.titulo-seccion{display:flex; align-items:center; gap:14px; margin:0 0 20px}
+.titulo-seccion h2{
+  margin:0; font:600 12px/1 var(--sans); letter-spacing:.15em; text-transform:uppercase;
+  color:var(--grafito); white-space:nowrap;
+}
+.titulo-seccion::after{content:""; flex:1; height:1px; background:var(--filete)}
+
+/* ---------- Mensajes clave ---------- */
+.mensajes{display:flex; flex-direction:column}
+.mensaje{
+  display:flex; gap:15px; padding:15px 0; border-top:1px solid var(--filete);
+  font:400 16.5px/1.55 var(--serif);
+}
+.mensaje:last-child{border-bottom:1px solid var(--filete)}
+.mensaje .punto{
+  flex:none; width:7px; height:7px; margin-top:11px; border-radius:99px; background:var(--dictamen);
+}
+.mensaje p{margin:0; text-wrap:pretty}
+
+/* ---------- Filas (riesgos, temas, condiciones) ---------- */
+.pila{display:flex; flex-direction:column; gap:9px}
+.fila{
+  display:flex; gap:14px; align-items:flex-start;
+  background:var(--superficie); border:1px solid var(--filete); border-radius:var(--radio);
+  padding:14px 16px;
+}
+.franja{flex:none; width:3px; align-self:stretch; border-radius:99px; background:var(--grafito)}
+.fila .cuerpo{flex:1; min-width:0}
+.fila .principal{margin:0; font-size:14.5px; line-height:1.5}
+.fila .detalle{margin:5px 0 0; font-size:12.5px; color:var(--grafito)}
+/* Los distintivos llevan SIEMPRE su texto: el color acompaña, nunca informa por sí solo. */
+.distintivo{
+  flex:none; font:600 10.5px/1 var(--sans); letter-spacing:.07em; text-transform:uppercase;
+  padding:5px 9px; border-radius:6px; white-space:nowrap;
+  color:var(--grafito); background:var(--superficie-2); border:1px solid var(--filete);
+}
+.distintivo.alta{color:var(--nogo); background:color-mix(in srgb,var(--nogo) 10%,transparent); border-color:color-mix(in srgb,var(--nogo) 26%,transparent)}
+.distintivo.media{color:var(--cond); background:color-mix(in srgb,var(--cond) 10%,transparent); border-color:color-mix(in srgb,var(--cond) 26%,transparent)}
+.distintivo.baja{color:var(--go); background:color-mix(in srgb,var(--go) 10%,transparent); border-color:color-mix(in srgb,var(--go) 26%,transparent)}
+
+/* ---------- Gráfico: completitud por bloque de la rúbrica ----------
+   Barras horizontales, serie única, rejilla recesiva, umbral como línea de referencia y etiqueta
+   directa en cada barra. Los bloques críticos se marcan por FORMA (un punto junto al nombre),
+   nunca con un segundo color. */
+.grafico{
+  background:var(--superficie); border:1px solid var(--filete); border-radius:var(--radio);
+  padding:20px 22px; overflow-x:auto;
+}
+.barras{display:flex; flex-direction:column; gap:13px; min-width:min(100%,320px)}
+.barra-fila{display:grid; grid-template-columns:minmax(96px,26%) 1fr auto; gap:14px; align-items:center}
+.barra-fila .nombre{
+  font-size:12.5px; color:var(--tinta); display:flex; align-items:center; gap:6px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.critico{flex:none; width:5px; height:5px; border-radius:99px; background:var(--tinta)}
+.canal{position:relative; height:9px; background:var(--superficie-2)}
+.umbral{position:absolute; top:-4px; bottom:-4px; width:1px; background:var(--grafito); opacity:.45}
+.dato{
+  height:100%; width:0; background:var(--dictamen); border-radius:0 4px 4px 0;
+  transition:width 1.1s cubic-bezier(.22,1,.36,1);
+}
+.leyenda-grafico{
+  margin:16px 0 0; padding-top:13px; border-top:1px solid var(--filete);
+  font-size:11.5px; color:var(--grafito); display:flex; flex-wrap:wrap; gap:6px 18px;
+}
+.leyenda-grafico span{display:inline-flex; align-items:center; gap:6px}
+.marca-umbral{display:inline-block; width:1px; height:11px; background:var(--grafito); opacity:.6}
+.barra-fila .pct{
+  font:600 12.5px/1 var(--mono); color:var(--tinta); font-variant-numeric:tabular-nums;
+  min-width:44px; text-align:right;
+}
+
+/* ---------- Tarjetas (fuentes, gobierno) ---------- */
+.rejilla{display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(206px,1fr))}
+.tarjeta{
+  background:var(--superficie); border:1px solid var(--filete);
+  border-radius:var(--radio); padding:15px 16px;
+}
+.tarjeta .nombre{
+  font:600 13.5px/1.3 var(--sans); display:flex; align-items:center; gap:7px; margin-bottom:4px;
+}
+.tarjeta .conteo{font:500 11.5px/1 var(--mono); color:var(--grafito); margin-bottom:11px}
+.tarjeta .rol{
+  font:600 10.5px/1 var(--sans); letter-spacing:.12em; text-transform:uppercase;
+  color:var(--grafito); margin-bottom:6px;
+}
+.etiquetas{display:flex; flex-wrap:wrap; gap:5px}
+.etiqueta{
+  font:500 11px/1 var(--mono); color:var(--grafito);
+  background:var(--superficie-2); border-radius:5px; padding:5px 8px;
+}
+.candado{font-size:12px}
+.vacio{color:var(--grafito); font-size:13.5px; font-style:italic; margin:0}
+
+/* ---------- Beneficio ---------- */
+.beneficio{
+  background:var(--superficie); border:1px solid var(--filete); border-left:3px solid var(--dictamen);
+  border-radius:var(--radio); padding:18px 20px;
+}
+.beneficio p{margin:0; font:400 16px/1.6 var(--serif); text-wrap:pretty}
+.beneficio .cifra{
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--filete);
+  font:600 13px/1.5 var(--mono); color:var(--tinta);
+}
+
+/* ---------- Pie ---------- */
+footer{
+  border-top:1px solid var(--filete); padding:30px 0 46px; margin-top:14px;
+  color:var(--grafito); font-size:12.5px;
+}
+footer .medidor{max-width:340px; margin-bottom:16px}
+footer p{margin:0; max-width:62ch; line-height:1.6}
+
+/* ---------- Aparición al desplazar ---------- */
+.revelar{opacity:0; transform:translateY(12px); transition:opacity .6s ease, transform .6s ease}
+.revelar.visible{opacity:1; transform:none}
+
+@media (prefers-reduced-motion: reduce){
+  .revelar{opacity:1; transform:none; transition:none}
+  .relleno,.dato{transition:none}
+}
+
+@media (max-width:720px){
+  .barra nav{display:none}
+  .dictamen{grid-template-columns:1fr}
+  .barra-fila{grid-template-columns:1fr auto; gap:5px 12px}
+  .barra-fila .canal{grid-column:1/-1; order:3}
+}
+
+/* ---------- Impresión: el mismo documento, como PDF ejecutivo ---------- */
+@media print{
+  :root{
+    --porcelana:#fff; --superficie:#fff; --superficie-2:#F0F2F1;
+    --tinta:#141A19; --grafito:#5B6664; --filete:#CBD3D0; --sombra:none;
+  }
+  .barra,.tema{display:none !important}
+  body{font-size:11pt; background:#fff}
+  main{gap:26px; padding-bottom:0}
+  .hero{padding-top:0}
+  h1{font-size:23pt}
+  .revelar{opacity:1 !important; transform:none !important}
+  .relleno,.dato{transition:none !important}
+  section,.fila,.tarjeta,.dictamen,.grafico,.beneficio{break-inside:avoid}
+  .titulo-seccion{break-after:avoid}
+}
+</style>
+</head>
+<body>
+
+<header class="barra">
+  <div class="envoltura">
+    <span class="marca">Discovery</span>
+    <nav>
+      <a href="#mensajes">Mensajes</a>
+      <a href="#riesgos">Riesgos</a>
+      <a href="#rubrica">Rúbrica</a>
+      <a href="#fuentes">Fuentes</a>
+      <a href="#pendientes">Pendientes</a>
+    </nav>
+    <span class="pildora">{{VEREDICTO_ICONO}} {{VEREDICTO}}</span>
+    <button class="tema" type="button" aria-label="Cambiar entre tema claro y oscuro">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2.4v2.2M12 19.4v2.2M2.4 12h2.2M19.4 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main class="envoltura">
+
+  <section class="hero">
+    <p class="eyebrow">Resumen ejecutivo del Discovery</p>
+    <h1>{{TITULO}}</h1>
+    <p class="meta">
+      <span>Fecha <b>{{FECHA}}</b></span>
+      <span>Casos de uso <b>{{N_CASOS}}</b></span>
+      <span>Fuentes de datos <b>{{N_FUENTES}}</b></span>
+    </p>
+    <p class="tesis">{{THESIS}}</p>
+
+    <div class="dictamen">
+      <div class="juicio">
+        <div class="glifo" aria-hidden="true">{{VEREDICTO_ICONO}}</div>
+        <div>
+          <h2>Veredicto: {{VEREDICTO}}</h2>
+          <p>{{VEREDICTO_NOTA}}</p>
+        </div>
+      </div>
+      <div class="medidores">
+        <div class="medidor">
+          <div class="fila-medidor"><span>Completitud del Discovery</span><b>{{COMPLETITUD}}%</b></div>
+          <div class="pista"><div class="relleno" data-objetivo="{{COMPLETITUD}}"></div></div>
+        </div>
+        <div class="medidor">
+          <div class="fila-medidor"><span>Cobertura de evidencia</span><b>{{COBERTURA}}%</b></div>
+          <div class="pista"><div class="relleno" data-objetivo="{{COBERTURA}}"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="revelar">
+    <div class="indicadores">{{KPIS}}</div>
+  </section>
+
+  <section id="mensajes" class="revelar">
+    <div class="titulo-seccion"><h2>Mensajes clave</h2></div>
+    <div class="mensajes">{{MENSAJES}}</div>
+  </section>
+
+  {{BLOQUE_CONDICIONES}}
+
+  <section id="riesgos" class="revelar">
+    <div class="titulo-seccion"><h2>Riesgos principales</h2></div>
+    <div class="pila">{{RIESGOS}}</div>
+  </section>
+
+  <section id="rubrica" class="revelar">
+    <div class="titulo-seccion"><h2>Completitud por bloque de la rúbrica</h2></div>
+    <div class="grafico">{{BLOQUES}}</div>
+  </section>
+
+  {{BLOQUE_BENEFICIO}}
+
+  <section id="fuentes" class="revelar">
+    <div class="titulo-seccion"><h2>Fuentes de datos a la nube</h2></div>
+    <div class="rejilla">{{FUENTES}}</div>
+  </section>
+
+  {{BLOQUE_GOBIERNO}}
+
+  <section id="pendientes" class="revelar">
+    <div class="titulo-seccion"><h2>Temas pendientes y próximos pasos</h2></div>
+    <div class="pila">{{TEMAS}}</div>
+  </section>
+
+</main>
+
+<footer class="envoltura">
+  <div class="medidor">
+    <div class="fila-medidor"><span>Cobertura de evidencia</span><b>{{COBERTURA}}%</b></div>
+    <div class="pista"><div class="relleno" data-objetivo="{{COBERTURA}}"></div></div>
+  </div>
+  <p>
+    Cada afirmación factual del Discovery cita el insumo del que procede; lo que no se conoció se
+    declara pendiente en lugar de completarse por suposición. El veredicto lo calcula una rúbrica
+    determinista sobre la información capturada, de modo que es reproducible y auditable.
+    Documento generado a partir de los insumos del Discovery ({{FECHA}}).
+  </p>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  var raiz = document.documentElement;
+  var reducido = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* --- Interruptor de tema: manda sobre la preferencia del sistema, en ambos sentidos. --- */
+  var boton = document.querySelector(".tema");
+  if (boton) {
+    boton.addEventListener("click", function(){
+      var oscuroAhora = raiz.getAttribute("data-theme")
+        ? raiz.getAttribute("data-theme") === "dark"
+        : window.matchMedia("(prefers-color-scheme: dark)").matches;
+      raiz.setAttribute("data-theme", oscuroAhora ? "light" : "dark");
+    });
+  }
+
+  /* --- Medidores y barras: crecen tras el primer pintado. --- */
+  function llenar(){
+    var barras = document.querySelectorAll("[data-objetivo]");
+    for (var i = 0; i < barras.length; i++) {
+      var pct = parseFloat(barras[i].getAttribute("data-objetivo")) || 0;
+      barras[i].style.width = Math.max(0, Math.min(100, pct)) + "%";
+    }
+  }
+  if (reducido) { llenar(); }
+  else { requestAnimationFrame(function(){ requestAnimationFrame(llenar); }); }
+
+  /* --- Aparición al desplazar. --- */
+  var revelables = document.querySelectorAll(".revelar");
+  function mostrarTodo(){
+    for (var i = 0; i < revelables.length; i++) revelables[i].classList.add("visible");
+  }
+  if (reducido || !("IntersectionObserver" in window)) {
+    mostrarTodo();
+  } else {
+    var observador = new IntersectionObserver(function(entradas){
+      entradas.forEach(function(e){
+        if (e.isIntersecting) { e.target.classList.add("visible"); observador.unobserve(e.target); }
+      });
+    }, { threshold: 0.12 });
+    for (var j = 0; j < revelables.length; j++) observador.observe(revelables[j]);
+  }
+
+  /* --- Al imprimir, todo debe estar visible aunque no se haya desplazado hasta ahí. --- */
+  window.addEventListener("beforeprint", function(){ mostrarTodo(); llenar(); });
+})();
+</script>
+</body>
+</html>

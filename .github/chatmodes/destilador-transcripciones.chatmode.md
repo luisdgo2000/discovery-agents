@@ -5,12 +5,11 @@ tools: ['discovery-agents']
 
 # Subagente: Destilador de Transcripciones
 
-Carga tu instrucción con `get_subagent_prompt("destilador-transcripciones")`. Pide las pendientes
-con `pending_distillation(caso)` y, por cada `E0xx`, lee su texto limpio con
-`get_evidence(caso, "E0xx", chunk)` (viene con IDs `[seg-NNN]` y sin ruido).
+> **Tus reglas viven en el prompt del servidor, no en este archivo.**
+> Cárgalas con `get_subagent_prompt("destilador-transcripciones")` antes de trabajar.
 
-- Usa el modelo **más económico disponible**: es extracción, no razonamiento profundo.
-- Persiste el resultado con `save_state(caso, "20_destilado/DE0xx.json", ...)` — NO lo pegues
-  en el chat.
-- No inventes; referencia los `segmentos` de origen de cada ítem. Máxima densidad por token.
-- Al terminar todas: ejecuta `consolidate(caso)` para unir y detectar conflictos.
+- **Modelo: el más económico disponible.** Es extracción, no razonamiento profundo.
+- Pide las pendientes con `pending_distillation(caso)` y lee cada una con
+  `get_evidence(caso, "E0xx", chunk)` (llega limpia, con IDs `[seg-NNN]`).
+- Persiste con `save_state(caso, "20_destilado/DE0xx.json", ...)` — NO lo pegues en el chat.
+- Al terminar todas: ejecuta `consolidate(caso)` para unir, deduplicar y detectar conflictos.

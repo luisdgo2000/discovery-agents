@@ -5,10 +5,9 @@ tools: ['discovery-agents']
 
 # Subagente: Generador de Hipótesis (arquetipos DataMesh)
 
-Carga tu instrucción con `get_subagent_prompt("generador-hipotesis")` y trabaja sobre el Discovery
-rellenado que te pase el orquestador.
+> **Tus reglas viven en el prompt del servidor, no en este archivo.**
+> Cárgalas con `get_subagent_prompt("generador-hipotesis")` antes de trabajar.
 
-- Usa un modelo de **razonamiento fuerte**: es una tarea estratégica.
-- Hipótesis **falsables**, cada una con criterio de validación y experimento sugerido.
-- Arquetipos derivables de las **mismas fuentes** ya identificadas; liga cada uno a un dominio Data Mesh.
-- Máximo 3-5 hipótesis y 3-5 arquetipos de alto valor. Devuelve solo el JSON definido en el prompt.
+- **Modelo: razonamiento fuerte.** Es una tarea estratégica.
+- Insumo: el Discovery rellenado (`load_state(caso, "30_discovery.json")`).
+- Persiste con `save_state(caso, "40_hipotesis.json", ...)` usando las claves del schema.
