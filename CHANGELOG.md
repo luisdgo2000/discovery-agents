@@ -4,6 +4,17 @@ Cambios notables de Discovery Agents. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [Sin publicar]
+
+### Documentación
+- README reescrito para que cualquier persona lo entienda: qué es y qué problema resuelve, para
+  quién es, el equipo de agentes, las fases y los puntos de control, cómo se calcula el veredicto,
+  los insumos y formatos, los entregables, la instalación, un ejemplo de principio a fin con salidas
+  reales, las herramientas del servidor MCP, seguridad, preguntas frecuentes, solución de problemas
+  y glosario. Corrige datos que habían quedado desactualizados (83 pruebas, no 80).
+- Nueva guía visual para personas no técnicas, `docs/como_funciona_el_agente.html`, actualizada a la
+  v4 (incluye el resumen ejecutivo HTML).
+
 ## 2026-09-29 — Publicación
 
 ### Cambiado
