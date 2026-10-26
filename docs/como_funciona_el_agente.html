@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discovery Agents, explicado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: una columna de lectura (~68ch) con secciones que se abren a lo ancho para el equipo, el proceso y los entregables. Paleta fría de "expediente técnico". */
+:root {
+  --paper: #f2f5f7;
+  --surface: #ffffff;
+  --ink: #15202a;
+  --muted: #566573;
+  --line: #d3dbe2;
+  --accent: #1d6a73;
+  --accent-soft: #dbebed;
+  --go: #2d7a4c;     --go-soft: #dcefe3;
+  --cond: #a8701a;   --cond-soft: #f6ead3;
+  --nogo: #ad3838;   --nogo-soft: #f5dddd;
+  --f-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --step--1: 0.875rem;
+  --step-0: 1.0625rem;
+  --step-1: 1.3rem;
+  --step-2: 1.7rem;
+  --step-3: clamp(2rem, 1.4rem + 2.6vw, 3rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f151b; --surface: #17202a; --ink: #e4eaef; --muted: #98a6b3; --line: #2a3541;
+    --accent: #63b6be; --accent-soft: #17333a;
+    --go: #62c48d; --go-soft: #15301f; --cond: #e2aa52; --cond-soft: #35280f; --nogo: #e67a7a; --nogo-soft: #3a1a1a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f151b; --surface: #17202a; --ink: #e4eaef; --muted: #98a6b3; --line: #2a3541;
+  --accent: #63b6be; --accent-soft: #17333a;
+  --go: #62c48d; --go-soft: #15301f; --cond: #e2aa52; --cond-soft: #35280f; --nogo: #e67a7a; --nogo-soft: #3a1a1a;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  padding-inline: 20px;
+  padding-block: 0 64px;
+}
+.wrap { max-width: 1040px; margin-inline: auto; }
+.read { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--f-display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: var(--step-3); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: var(--step-2); font-weight: 700; }
+h3 { font-size: var(--step-1); font-weight: 500; }
+p { margin: 0; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+code { background: var(--accent-soft); color: var(--ink); padding: 0.1em 0.35em; border-radius: 4px; }
+.label {
+  font-family: var(--f-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent); font-weight: 600;
+}
+.muted { color: var(--muted); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Cabecera */
+header.top {
+  padding-block: 56px 40px;
+  border-bottom: 1px solid var(--line);
+  display: grid; gap: 20px;
+}
+header.top .lede { font-size: var(--step-1); line-height: 1.5; max-width: 60ch; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.toc a {
+  font-size: var(--step--1); text-decoration: none; color: var(--ink);
+  border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 999px;
+}
+.toc a:hover { border-color: var(--accent); color: var(--accent); }
+
+section { padding-block: 56px 8px; display: grid; gap: 24px; }
+section > .head { display: grid; gap: 10px; }
+
+/* Analogía */
+.analogy {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;
+}
+.analogy > div { display: grid; gap: 6px; padding: 18px 20px; border-top: 3px solid var(--line); }
+.analogy > div:last-child { border-top-color: var(--accent); }
+
+/* Equipo */
+.team { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+.member {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 18px 20px; display: grid; gap: 8px; align-content: start; min-width: 0;
+}
+.member .who { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.member .human { font-size: var(--step--1); color: var(--muted); }
+.member.lead { border-color: var(--accent); background: var(--accent-soft); }
+.member.machine { border-style: dashed; }
+.tag {
+  font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
+}
+.tag.ai { color: var(--accent); border-color: var(--accent); }
+
+/* Carpeta de insumos */
+.inputs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 760px) { .inputs { grid-template-columns: minmax(0, 1fr); } }
+.tree {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px;
+  font-family: var(--f-mono); font-size: 0.85rem; line-height: 1.9; overflow-x: auto;
+}
+.tree .c { color: var(--muted); }
+.inlist { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.inlist li { display: grid; gap: 2px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.inlist li:last-child { border-bottom: 0; }
+.inlist b { font-family: var(--f-display); font-weight: 500; font-size: 1.05rem; }
+
+.sheet-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: var(--step--1); font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-family: var(--f-mono); font-size: 0.75rem; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; background: var(--accent-soft); }
+tr:last-child td { border-bottom: 0; }
+.caption { font-size: var(--step--1); color: var(--muted); }
+
+/* Proceso */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.step { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 16px; position: relative; padding-bottom: 22px; }
+.step::before {
+  content: ""; position: absolute; left: 27px; top: 44px; bottom: 0; width: 2px; background: var(--line);
+}
+.step:last-child::before { display: none; }
+.num {
+  width: 56px; height: 44px; border-radius: 8px; display: grid; place-items: center;
+  font-family: var(--f-mono); font-weight: 600; font-size: 0.95rem;
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink); position: relative;
+}
+.step .body { display: grid; gap: 6px; padding-top: 8px; }
+.step .meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.gate {
+  margin-top: 6px; display: flex; gap: 10px; align-items: flex-start;
+  background: var(--cond-soft); border: 1px solid var(--cond); border-radius: 8px; padding: 10px 14px;
+  font-size: var(--step--1);
+}
+.gate b { color: var(--cond); font-family: var(--f-mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; padding-top: 2px; }
+
+.conflict {
+  background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--nogo);
+  border-radius: 8px; padding: 14px 18px; display: grid; gap: 8px; font-size: var(--step--1);
+}
+.conflict .vs { display: flex; flex-wrap: wrap; gap: 10px; }
+.conflict .vs span { background: var(--nogo-soft); padding: 4px 10px; border-radius: 6px; }
+
+/* Entregables */
+.docparts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.part {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: grid; gap: 8px; align-content: start;
+}
+.part ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: var(--step--1); display: grid; gap: 3px; }
+.files { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 28px; }
+.file { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding-block: 14px; border-bottom: 1px solid var(--line); }
+.file .mono { color: var(--accent); font-weight: 600; overflow-wrap: anywhere; }
+
+/* Veredicto */
+.verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.v { border-radius: 10px; padding: 18px 20px; display: grid; gap: 8px; align-content: start; border: 1px solid; }
+.v .name { font-family: var(--f-display); font-weight: 700; font-size: var(--step-1); }
+.v.go { background: var(--go-soft); border-color: var(--go); } .v.go .name { color: var(--go); }
+.v.cond { background: var(--cond-soft); border-color: var(--cond); } .v.cond .name { color: var(--cond); }
+.v.nogo { background: var(--nogo-soft); border-color: var(--nogo); } .v.nogo .name { color: var(--nogo); }
+
+.blocks { display: grid; gap: 10px; }
+.blk { display: grid; grid-template-columns: minmax(150px, 230px) minmax(0, 1fr) 44px; gap: 14px; align-items: center; font-size: var(--step--1); }
+@media (max-width: 560px) { .blk { grid-template-columns: minmax(0, 1fr) 44px; } .blk .bar { grid-column: 1 / -1; grid-row: 2; } }
+.blk .bar { height: 12px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.blk .bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.blk .pts { font-family: var(--f-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.blk .crit { font-family: var(--f-mono); font-size: 0.68rem; color: var(--nogo); letter-spacing: 0.05em; text-transform: uppercase; margin-left: 6px; }
+
+.scale { display: grid; gap: 6px; }
+.scale .track { display: grid; grid-template-columns: 60fr 25fr 15fr; height: 18px; border-radius: 6px; overflow: hidden; }
+.scale .track span:nth-child(1) { background: var(--nogo); }
+.scale .track span:nth-child(2) { background: var(--cond); }
+.scale .track span:nth-child(3) { background: var(--go); }
+.scale .ticks { position: relative; height: 18px; font-family: var(--f-mono); font-size: 0.75rem; color: var(--muted); }
+.scale .ticks span { position: absolute; transform: translateX(-50%); }
+.scale .ticks span:first-child { transform: none; }
+.scale .ticks span:last-child { transform: translateX(-100%); }
+
+/* Reglas */
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 32px; }
+.rule { display: grid; gap: 4px; padding-top: 14px; border-top: 1px solid var(--line); }
+.rule h3 { font-size: 1.1rem; font-weight: 700; }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px; display: grid; gap: 12px; align-content: start; }
+.panel ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+
+.prompt {
+  font-family: var(--f-mono); font-size: 0.92rem; background: var(--ink); color: var(--paper);
+  padding: 14px 18px; border-radius: 8px; overflow-x: auto; white-space: nowrap;
+}
+
+dl.gloss { display: grid; grid-template-columns: minmax(130px, 200px) minmax(0, 1fr); gap: 12px 24px; margin: 0; }
+dl.gloss dt { font-family: var(--f-display); font-weight: 700; }
+dl.gloss dd { margin: 0; color: var(--muted); }
+@media (max-width: 560px) { dl.gloss { grid-template-columns: minmax(0, 1fr); gap: 2px; } dl.gloss dd { margin-bottom: 12px; } }
+
+footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line); font-size: var(--step--1); color: var(--muted); }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <span class="label">Guía para personas no técnicas</span>
+  <h1>Cómo funciona el agente de Discovery en GitHub Copilot</h1>
+  <p class="lede">Le entregas una carpeta con todo lo que se sabe de un proyecto de datos (documentos, reuniones de Teams, un Excel de fuentes) y el agente te devuelve un documento de Discovery profesional en Word, con diagramas, tablas y un veredicto claro: <b>Go</b>, <b>Condicional</b> o <b>No-Go</b>.</p>
+  <nav class="toc" aria-label="Contenido">
+    <a href="#que-es">Qué es</a>
+    <a href="#equipo">El equipo</a>
+    <a href="#insumos">Lo que necesita</a>
+    <a href="#proceso">Cómo trabaja</a>
+    <a href="#resultados">Lo que entrega</a>
+    <a href="#veredicto">Cómo decide</a>
+    <a href="#reglas">Reglas de oro</a>
+    <a href="#empezar">Cómo empezar</a>
+    <a href="#glosario">Glosario</a>
+  </nav>
+</header>
+
+<!-- QUÉ ES -->
+<section id="que-es">
+  <div class="head read">
+    <span class="label">Qué es</span>
+    <h2>Un equipo de consultores que trabaja dentro de Copilot</h2>
+    <p>Antes de construir un producto de datos (un tablero, un modelo, una base consolidada en la nube) hay que hacer un <b>Discovery</b>: entender qué problema resuelve, quién lo pide, de dónde salen los datos, qué falta y si es viable. Normalmente eso toma semanas de reuniones, notas sueltas y un documento que alguien redacta a mano.</p>
+  </div>
+  <div class="analogy">
+    <div>
+      <span class="label">Sin el agente</span>
+      <p>Un analista relee transcripciones, copia cifras de un Excel, persigue datos que faltan y redacta el documento. Las contradicciones entre lo que dijo una persona y lo que dice un archivo a veces pasan desapercibidas.</p>
+    </div>
+    <div>
+      <span class="label">Con el agente</span>
+      <p>El agente lee todo, ordena los hechos, detecta lo que falta y lo que se contradice, y redacta el documento. Tú revisas en tres momentos clave y apruebas el resultado final.</p>
+    </div>
+  </div>
+</section>
+
+<!-- EQUIPO -->
+<section id="equipo">
+  <div class="head read">
+    <span class="label">El equipo</span>
+    <h2>Un coordinador, cinco especialistas y un asistente mecánico</h2>
+    <p>"El agente" en realidad es un pequeño equipo. Cada miembro tiene una sola tarea, igual que en una firma de consultoría. En Copilot aparecen como modos de chat que puedes elegir.</p>
+  </div>
+  <div class="team">
+    <article class="member lead">
+      <div class="who"><h3>Orquestador</h3><span class="tag ai">IA</span></div>
+      <p class="human">Equivale a: el jefe de proyecto</p>
+      <p>Revisa qué trajiste, propone un plan, reparte el trabajo entre los especialistas en el orden correcto y te consulta en los momentos de decisión. Es con quien hablas.</p>
+    </article>
+    <article class="member">
+      <div class="who"><h3>Destilador</h3><span class="tag ai">IA</span></div>
+      <p class="human">Equivale a: quien toma las minutas</p>
+      <p>Lee cada transcripción de Teams y la convierte en hechos concretos: quién dijo qué, qué cifras se mencionaron, qué quedó pendiente. Solo procesa las reuniones nuevas.</p>
+    </article>
+    <article class="member">
+      <div class="who"><h3>Constructor</h3><span class="tag ai">IA</span></div>
+      <p class="human">Equivale a: el analista que arma la ficha</p>
+      <p>Llena una ficha estándar del proyecto: objetivo, alcance, personas, fuentes de datos, volúmenes, dependencias. Si un dato no aparece en los insumos, escribe <code>PENDIENTE</code>.</p>
+    </article>
+    <article class="member">
+      <div class="who"><h3>Generador de hipótesis</h3><span class="tag ai">IA</span></div>
+      <p class="human">Equivale a: el estratega</p>
+      <p>Propone hipótesis que se puedan comprobar ("si consolidamos X, bajará el tiempo de Y") y otras oportunidades que los mismos datos podrían habilitar.</p>
+    </article>
+    <article class="member">
+      <div class="who"><h3>Crítico</h3><span class="tag ai">IA</span></div>
+      <p class="human">Equivale a: el auditor</p>
+      <p>Busca huecos y ambigüedades, y formula las <b>preguntas poderosas</b> que alguien debe responder antes de avanzar.</p>
+    </article>
+    <article class="member">
+      <div class="who"><h3>Redactor experto</h3><span class="tag ai">IA</span></div>
+      <p class="human">Equivale a: el consultor senior</p>
+      <p>Escribe la narrativa para ejecutivos y técnicos: cómo se trabaja hoy, cómo se trabajará con el producto, riesgos, decisiones pendientes y el tamaño del esfuerzo. También detecta contradicciones.</p>
+    </article>
+    <article class="member machine">
+      <div class="who"><h3>Asistente mecánico</h3><span class="tag">Sin IA</span></div>
+      <p class="human">Equivale a: el archivista con calculadora</p>
+      <p>Hace todo lo repetitivo: abre los archivos, limpia las transcripciones, compara cifras, calcula el veredicto y arma el Word, los diagramas y las tablas. Como no usa IA, es rápido, no tiene costo de uso y siempre da el mismo resultado con los mismos datos.</p>
+    </article>
+  </div>
+</section>
+
+<!-- INSUMOS -->
+<section id="insumos">
+  <div class="head read">
+    <span class="label">Lo que necesita</span>
+    <h2>Una carpeta con lo que ya se sabe del caso</h2>
+    <p>Creas una carpeta con el nombre del caso dentro de <code>inputs/</code> y repartes los archivos en subcarpetas. No hace falta tenerlas todas: mientras más completa, mejor el resultado, y lo que falte el agente lo marca como pendiente en vez de inventarlo.</p>
+  </div>
+  <div class="inputs">
+    <div class="tree" aria-label="Estructura de la carpeta de insumos">
+      inputs/mi_caso/<br>
+      ├─ caso_de_uso/ <span class="c">· la necesidad</span><br>
+      ├─ discovery_inicial/ <span class="c">· primera entrevista</span><br>
+      ├─ discovery_tecnico/ <span class="c">· notas técnicas</span><br>
+      ├─ transcripciones/ <span class="c">· reuniones de Teams</span><br>
+      ├─ hallazgos/ <span class="c">· bloqueos y dependencias</span><br>
+      ├─ fuentes/ <span class="c">· Excel de tablas</span><br>
+      └─ imagenes/ <span class="c">· diagramas y capturas</span>
+    </div>
+    <ul class="inlist">
+      <li><b>Caso de uso</b><span class="muted">Descripción de la necesidad, objetivo y alcance. Word, PDF, PowerPoint o texto.</span></li>
+      <li><b>Notas de Discovery inicial y técnico</b><span class="muted">Lo conversado en las entrevistas y la lógica de negocio o consultas que construyen el dato.</span></li>
+      <li><b>Transcripciones de Teams</b><span class="muted">Tal como las descarga Teams (.vtt o .docx) o en texto plano. El agente reconoce quién habla.</span></li>
+      <li><b>Hallazgos</b><span class="muted">Impedimentos, dependencias con otras áreas, accesos pendientes.</span></li>
+      <li><b>Imágenes</b><span class="muted">Diagramas o capturas de pantalla. El texto se lee automáticamente cuando es posible.</span></li>
+    </ul>
+  </div>
+  <div class="read" style="display:grid; gap:10px; max-width:none;">
+    <h3>El Excel de fuentes</h3>
+    <p class="read">Es el insumo que más valor aporta a la parte técnica. Basta con una hoja con estos encabezados:</p>
+    <div class="sheet-wrap">
+      <table>
+        <thead><tr><th>Tabla</th><th>Servidor</th><th>Volumetría</th><th>Frecuencia</th><th>Sensible</th></tr></thead>
+        <tbody>
+          <tr><td>ventas_detalle</td><td>SRV-ONPREM-01</td><td>400M registros</td><td>Diaria</td><td>No</td></tr>
+          <tr><td>clientes</td><td>SRV-CRM</td><td>2.5M registros</td><td>Semanal</td><td>Sí</td></tr>
+          <tr><td>catalogo_productos</td><td>SRV-ONPREM-01</td><td>15 mil registros</td><td>Mensual</td><td>No</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caption">Filas de ejemplo. La volumetría puede escribirse como "400M" o "300 millones"; el agente entiende ambas.</p>
+  </div>
+</section>
+
+<!-- PROCESO -->
+<section id="proceso">
+  <div class="head read">
+    <span class="label">Cómo trabaja</span>
+    <h2>Ocho pasos y tres puntos de control humano</h2>
+    <p>El agente avanza por fases. En tres momentos se detiene y te pide revisar, porque corregir temprano es barato y corregir al final es caro.</p>
+  </div>
+  <ol class="steps">
+    <li class="step">
+      <span class="num">F0</span>
+      <div class="body">
+        <h3>Revisa qué trajiste y propone un plan</h3>
+        <p class="muted">Lista los archivos sin abrirlos todavía, te dice qué parece faltar y en qué orden trabajará.</p>
+        <div class="gate"><b>Control 1</b><span>Tú validas el plan antes de que empiece.</span></div>
+      </div>
+    </li>
+    <li class="step">
+      <span class="num">F1</span>
+      <div class="body">
+        <h3>Lee y ordena los documentos</h3>
+        <p class="muted">Extrae el contenido de cada archivo, limpia las muletillas de las transcripciones sin alterar el original y le asigna a cada documento un código de evidencia (<code>E001</code>, <code>E002</code>…).</p>
+      </div>
+    </li>
+    <li class="step">
+      <span class="num">F2</span>
+      <div class="body">
+        <h3>Resume cada reunión y compara cifras</h3>
+        <p class="muted">El Destilador convierte cada transcripción en hechos. Luego el asistente mecánico junta todo y busca números que no coinciden entre fuentes.</p>
+        <div class="conflict">
+          <span class="label" style="color:var(--nogo)">Ejemplo de conflicto detectado</span>
+          <div class="vs"><span>Excel <code>E003</code>: 400 millones de registros</span><span>Reunión <code>E005</code>: "unos 300 millones"</span></div>
+          <span class="muted">El agente no elige uno en silencio: lo declara en el documento para que alguien lo aclare.</span>
+        </div>
+      </div>
+    </li>
+    <li class="step">
+      <span class="num">F3</span>
+      <div class="body">
+        <h3>Arma la ficha del proyecto</h3>
+        <p class="muted">El Constructor llena la ficha estándar con roles, fuentes, volúmenes, dependencias y lo que sigue pendiente.</p>
+        <div class="gate"><b>Control 2</b><span>Tú corriges los hechos (nombres, cifras, responsables) antes de que se redacte nada.</span></div>
+      </div>
+    </li>
+    <li class="step">
+      <span class="num">F4</span>
+      <div class="body">
+        <h3>Propone hipótesis y oportunidades</h3>
+        <p class="muted">Qué se espera lograr, cómo se comprobaría y qué otros productos de datos podrían salir de las mismas fuentes.</p>
+      </div>
+    </li>
+    <li class="step">
+      <span class="num">F5</span>
+      <div class="body">
+        <h3>Califica el caso y busca huecos</h3>
+        <p class="muted">El asistente mecánico calcula qué tan completo está el Discovery y emite el veredicto. El Crítico revisa los vacíos y escribe las preguntas que hay que hacerle al negocio.</p>
+      </div>
+    </li>
+    <li class="step">
+      <span class="num">F6</span>
+      <div class="body">
+        <h3>Redacta como consultor senior</h3>
+        <p class="muted">Situación actual y futura, riesgos, decisiones pendientes y el tamaño del esfuerzo en tallas S, M, L o XL, con su justificación.</p>
+      </div>
+    </li>
+    <li class="step">
+      <span class="num">F7</span>
+      <div class="body">
+        <h3>Arma el entregable final</h3>
+        <p class="muted">Genera el Word, los diagramas y las tablas, y verifica que cada afirmación tenga una fuente.</p>
+        <div class="gate"><b>Control 3</b><span>Tú apruebas el documento antes de compartirlo con los interesados.</span></div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- RESULTADOS -->
+<section id="resultados">
+  <div class="head read">
+    <span class="label">Lo que entrega</span>
+    <h2>Un documento en Word y su material de apoyo</h2>
+    <p>Todo queda en la carpeta <code>work/mi_caso/outputs/</code>. El documento principal está pensado para dos públicos a la vez, así que se divide en dos vistas del mismo Discovery más un cierre.</p>
+  </div>
+  <div class="docparts">
+    <div class="part">
+      <span class="label">Parte I</span>
+      <h3>Discovery inicial</h3>
+      <p class="muted">Para líderes y negocio.</p>
+      <ul><li>Problema, objetivo y alcance</li><li>Personas y roles</li><li>Riesgos</li><li>Evaluación de factibilidad</li></ul>
+    </div>
+    <div class="part">
+      <span class="label">Parte II</span>
+      <h3>Discovery técnico</h3>
+      <p class="muted">Para el equipo que lo construirá.</p>
+      <ul><li>Fuentes a llevar a la nube, con columnas, servidor y librerías</li><li>Qué hay que habilitar</li><li>Dependencias y expertos</li></ul>
+    </div>
+    <div class="part">
+      <span class="label">Cierre</span>
+      <h3>Temas faltantes</h3>
+      <p class="muted">Lo que todavía no se sabe.</p>
+      <ul><li>Lista automática de pendientes y deuda técnica</li><li>Cobertura de evidencia: qué porcentaje del texto está respaldado por una fuente</li></ul>
+    </div>
+  </div>
+  <div class="files">
+    <div class="file"><span class="mono">discovery_final.docx</span><span class="muted">El documento completo en Word, listo para revisar y compartir.</span></div>
+    <div class="file"><span class="mono">resumen_ejecutivo.html</span><span class="muted">Resumen ejecutivo para líderes: veredicto, mensajes clave, riesgos, completitud por bloque, fuentes y pendientes. Es un solo archivo que se abre en cualquier navegador, sin internet.</span></div>
+    <div class="file"><span class="mono">discovery_final.md</span><span class="muted">La misma versión en texto, cómoda para guardar en el repositorio.</span></div>
+    <div class="file"><span class="mono">veredicto.json</span><span class="muted">Go, Condicional o No-Go, con el porcentaje de completitud y las condiciones para avanzar.</span></div>
+    <div class="file"><span class="mono">brechas.md</span><span class="muted">Qué falta por bloque y las preguntas poderosas para cerrarlo.</span></div>
+    <div class="file"><span class="mono">diagramas/</span><span class="muted">Flujo de los datos, fuentes agrupadas por servidor, mapa de dominios (Data Mesh) y un modelo preliminar de tablas.</span></div>
+    <div class="file"><span class="mono">tablas/</span><span class="muted">Inventario de fuentes, riesgos, dependencias, supuestos y restricciones, decisiones pendientes, temas faltantes y el rastreo de cada dato hasta su fuente.</span></div>
+  </div>
+</section>
+
+<!-- VEREDICTO -->
+<section id="veredicto">
+  <div class="head read">
+    <span class="label">Cómo decide</span>
+    <h2>El veredicto se calcula, no se opina</h2>
+    <p>La IA no decide si el proyecto avanza. Una regla fija revisa una lista de preguntas agrupadas en seis bloques, suma los puntos de lo que está respondido con datos reales y entrega el resultado. Con los mismos insumos, el veredicto siempre es el mismo.</p>
+  </div>
+
+  <div class="panel">
+    <h3>Los seis bloques y su peso (100 puntos)</h3>
+    <div class="blocks">
+      <div class="blk"><span>Fuentes y datos<span class="crit">crítico</span></span><span class="bar"><i style="width:100%"></i></span><span class="pts">22</span></div>
+      <div class="blk"><span>Negocio y caso de uso<span class="crit">crítico</span></span><span class="bar"><i style="width:90.9%"></i></span><span class="pts">20</span></div>
+      <div class="blk"><span>Habilitación técnica<span class="crit">crítico</span></span><span class="bar"><i style="width:81.8%"></i></span><span class="pts">18</span></div>
+      <div class="blk"><span>Personas y roles<span class="crit">crítico</span></span><span class="bar"><i style="width:68.2%"></i></span><span class="pts">15</span></div>
+      <div class="blk"><span>Hipótesis y valor</span><span class="bar"><i style="width:68.2%"></i></span><span class="pts">15</span></div>
+      <div class="blk"><span>Riesgos y factibilidad<span class="crit">crítico</span></span><span class="bar"><i style="width:45.5%"></i></span><span class="pts">10</span></div>
+    </div>
+    <p class="caption">Un bloque "crítico" incompleto impide un Go aunque el total sea alto. Ejemplo: decir "la tabla es grande" no cuenta como volumetría; hace falta un número.</p>
+  </div>
+
+  <div class="scale" aria-label="Escala de completitud">
+    <div class="track"><span></span><span></span><span></span></div>
+    <div class="ticks"><span style="left:0">0%</span><span style="left:60%">60%</span><span style="left:85%">85%</span><span style="left:100%">100%</span></div>
+  </div>
+
+  <div class="verdicts">
+    <div class="v go"><span class="name">Go</span><p>85% o más de completitud y todos los bloques críticos completos. Se puede avanzar a construir.</p></div>
+    <div class="v cond"><span class="name">Condicional</span><p>Entre 60% y 85%, o algún bloque crítico incompleto. Se avanza solo si se cumplen las condiciones listadas.</p></div>
+    <div class="v nogo"><span class="name">No-Go</span><p>Menos de 60%, o más de cuatro condiciones abiertas. Hay que volver a recoger información antes de seguir.</p></div>
+  </div>
+</section>
+
+<!-- REGLAS -->
+<section id="reglas">
+  <div class="head read">
+    <span class="label">Reglas de oro</span>
+    <h2>Por qué puedes confiar en el documento</h2>
+  </div>
+  <div class="rules">
+    <div class="rule"><h3>No inventa</h3><p class="muted">Si un dato no está en los insumos, queda como <code>PENDIENTE</code> y aparece en "Temas faltantes".</p></div>
+    <div class="rule"><h3>Cita la fuente</h3><p class="muted">Cada dato relevante lleva su código, por ejemplo <code>[E003]</code>, para que cualquiera pueda verificarlo en el archivo original.</p></div>
+    <div class="rule"><h3>Declara las contradicciones</h3><p class="muted">Cuando dos fuentes no coinciden, lo dice y propone cómo resolverlo. Nunca escoge una versión sin avisar.</p></div>
+    <div class="rule"><h3>Respeta los originales</h3><p class="muted">Tus archivos no se modifican. Las versiones limpias se guardan aparte y el original siempre está disponible.</p></div>
+    <div class="rule"><h3>Veredicto objetivo</h3><p class="muted">Lo calcula una regla fija, no la IA. La recomendación del Redactor no puede contradecirlo.</p></div>
+    <div class="rule"><h3>Tú tienes la última palabra</h3><p class="muted">Tres puntos de control humano: nada se comparte sin tu aprobación.</p></div>
+  </div>
+</section>
+
+<!-- LÍMITES Y EMPEZAR -->
+<section id="empezar">
+  <div class="head read">
+    <span class="label">Cómo empezar</span>
+    <h2>Lo que haces tú y lo que hace el agente</h2>
+  </div>
+  <div class="two">
+    <div class="panel">
+      <h3>Para empezar</h3>
+      <ul>
+        <li>Pide a alguien del equipo técnico que prepare una vez el entorno (VS Code, GitHub Copilot y Python).</li>
+        <li>Crea tu carpeta en <code>inputs/</code> con los archivos del caso.</li>
+        <li>En el chat de Copilot elige el modo <b>Orquestador Discovery</b> y escribe:</li>
+      </ul>
+      <div class="prompt">Construye el discovery de inputs/mi_caso</div>
+      <p class="muted">El agente responde primero con su plan y espera tu confirmación.</p>
+    </div>
+    <div class="panel">
+      <h3>Lo que el agente no hace</h3>
+      <ul>
+        <li>No completa datos que nadie le dio. Las preguntas poderosas son para que tú las hagas al negocio.</li>
+        <li>No decide por ti: propone, y tú validas en cada punto de control.</li>
+        <li>No comparte el documento con nadie. Eso lo haces tú después de aprobarlo.</li>
+        <li>No reemplaza las reuniones con el negocio: las aprovecha mejor.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- GLOSARIO -->
+<section id="glosario">
+  <div class="head read">
+    <span class="label">Glosario</span>
+    <h2>Términos que vas a ver en el documento</h2>
+  </div>
+  <dl class="gloss">
+    <dt>Discovery</dt><dd>Etapa de investigación previa a construir: qué se necesita, para quién, con qué datos y si es viable.</dd>
+    <dt>Producto de datos</dt><dd>Un conjunto de datos preparado para que otros lo usen: un tablero, una tabla consolidada, un modelo.</dd>
+    <dt>Fuente</dt><dd>La tabla o sistema de donde sale un dato, por ejemplo una base de ventas en un servidor de la empresa.</dd>
+    <dt>Volumetría</dt><dd>Cuántos registros tiene una tabla. Ayuda a estimar costo y esfuerzo.</dd>
+    <dt>Frecuencia</dt><dd>Cada cuánto se actualizan los datos: diaria, semanal, en tiempo real.</dd>
+    <dt>Evidencia (E001…)</dt><dd>El código que el agente asigna a cada documento de entrada para poder citarlo.</dd>
+    <dt>PENDIENTE</dt><dd>Marca de un dato que no apareció en ningún insumo y que alguien debe conseguir.</dd>
+    <dt>Data Mesh</dt><dd>Forma de organizar los datos por áreas de negocio. El agente sugiere qué otros productos podrían salir de las mismas fuentes.</dd>
+    <dt>Situación actual / futura</dt><dd>Cómo se hace el proceso hoy y cómo se hará con el producto de datos (en inglés, <i>as-is</i> y <i>to-be</i>).</dd>
+    <dt>Talla S / M / L / XL</dt><dd>Tamaño estimado del esfuerzo para construir el producto.</dd>
+    <dt>Deuda técnica</dt><dd>Temas que quedan sin resolver y que habrá que atender más adelante.</dd>
+  </dl>
+</section>
+
+<footer>
+  Discovery Agents v4 · orquestador y cinco especialistas en GitHub Copilot, con un servidor de herramientas en Python para el trabajo mecánico.
+</footer>
+
+</div>
+</body>
+</html>
