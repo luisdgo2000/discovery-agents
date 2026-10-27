@@ -6,6 +6,12 @@ Cambios notables de Discovery Agents. Formato basado en
 
 ## [Sin publicar]
 
+### Cambiado
+- Los datos de demostración (`inputs/discovery_demo`) y una prueba usan dominios y nombres de
+  base de datos genéricos (`@example.com`, `DBPROD`, `DBLIQ`) en lugar de identificadores que
+  parecían de una empresa real, antes de hacer público el repositorio. Los nombres de persona
+  del caso, que son ficticios, se conservan.
+
 ### Documentación
 - README reescrito para que cualquier persona lo entienda: qué es y qué problema resuelve, para
   quién es, el equipo de agentes, las fases y los puntos de control, cómo se calcula el veredicto,

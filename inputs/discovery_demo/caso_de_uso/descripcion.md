@@ -14,4 +14,4 @@ Incluye: transacciones de adquirencia, catálogo de comercios y liquidaciones di
 Excluye: emisión, comercios internacionales y el cálculo de comisiones (fase posterior).
 
 ## Solicitante
-María Solís, Gerente de Operaciones Comerciales — msolis@bac.net
+María Solís, Gerente de Operaciones Comerciales — msolis@example.com
