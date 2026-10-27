@@ -596,7 +596,7 @@ class TestExtractoresNuevos(unittest.TestCase):
     def test_sql_aporta_tablas_al_inventario(self):
         from discovery_agents.ingest.extractores.estructurados import extraer
         ruta = self._escribir("carga.sql", """-- comentario con FROM que no cuenta
-            SELECT a.id FROM BACPROD.dbo.TRX_ADQUIRENCIA a
+            SELECT a.id FROM DBPROD.dbo.TRX_ADQUIRENCIA a
             JOIN dbo.CATALOGO_COMERCIOS b ON a.cid = b.id;""")
         registro, resumen, extras = extraer(ruta)
         tablas = [t["tabla"] for t in extras["fuentes"]]
